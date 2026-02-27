@@ -12,6 +12,8 @@ import (
 
 type ZivpnConfig struct {
 	Listen  string `json:"listen"`
+	Cert    string `json:"cert"`
+	Key     string `json:"key"`
 	MaxConn int    `json:"max_conn"`
 	Auth    struct {
 		Mode   string   `json:"mode"`
@@ -48,7 +50,7 @@ func InstallZivpn(port string) error {
 
 	// configuraciones
 	os.MkdirAll("/etc/zivpn", 0755)
-	configJSON := `{"listen": ":` + port + `","max_conn": 0}`
+	configJSON := `{"listen": ":` + port + `", "cert": "/etc/zivpn/zivpn.crt", "key": "/etc/zivpn/zivpn.key", "max_conn": 0}`
 	os.WriteFile("/etc/zivpn/config.json", []byte(configJSON), 0644)
 
 	// certificados ssl requeridos internamente
