@@ -117,8 +117,8 @@ func handleTextInputs(c tele.Context, b *tele.Bot) error {
 		tempData[chatID]["quota"] = text
 
 		return finishSSHCreation(c, b, chatID, lastMsg)
-	case "awaiting_zivpn_pass":
-		return finishZivpnCreation(text, chatID, b, lastMsg)
+	case "awaiting_zivpn_pass", "awaiting_zivpn_days":
+		return processZivpnSteps(step, text, chatID, c, b, lastMsg)
 
 	case "awaiting_delete_user":
 		userData, _ := db.Load()

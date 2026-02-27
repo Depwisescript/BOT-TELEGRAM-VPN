@@ -28,7 +28,8 @@ type ConfigData struct {
 	Dropbear         string               `json:"dropbear"`   // Port as string for compatibility
 	SSLTunnel        string               `json:"ssl_tunnel"` // Port as string for compatibility
 	SSHBanner        string               `json:"ssh_banner"`
-	SSHLastActive    map[string]string    `json:"ssh_last_active"` // user -> last active RFC3339
+	SSHLastActive    map[string]string    `json:"ssh_last_active"`   // user -> last active RFC3339
+	ZivpnLastActive  map[string]string    `json:"zivpn_last_active"` // pass -> last active RFC3339
 }
 
 type AdminInfo struct {
@@ -107,6 +108,9 @@ func loadUnlocked() (*ConfigData, error) {
 	if data.SSHLastActive == nil {
 		data.SSHLastActive = make(map[string]string)
 	}
+	if data.ZivpnLastActive == nil {
+		data.ZivpnLastActive = make(map[string]string)
+	}
 
 	return &data, nil
 }
@@ -161,6 +165,7 @@ func defaultData() *ConfigData {
 			Ports: make(map[string]string),
 			Token: "dummy",
 		},
-		SSHLastActive: make(map[string]string),
+		SSHLastActive:   make(map[string]string),
+		ZivpnLastActive: make(map[string]string),
 	}
 }
