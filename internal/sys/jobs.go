@@ -1,6 +1,7 @@
 package sys
 
 import (
+	"os"
 	"time"
 
 	"github.com/Depwisescript/BOT-TELEGRAM-VPN/internal/db"
@@ -37,7 +38,13 @@ func AutoCleanupLoop(b *tele.Bot) {
 
 				// 3. Limpieza de Usuarios Zombi (12 Horas de inactividad)
 				online, _ := CountOnlineConnections()
-				for user := range data.SSHOwners {
+				saID := os.Getenv("SUPER_ADMIN")
+				for user, ownerID := range data.SSHOwners {
+					// Obviar si es del SuperAdmin
+					if ownerID == saID {
+						continue
+					}
+
 					// Si está online, actualizar rastro
 					if _, isOnline := online[user]; isOnline {
 						data.SSHLastActive[user] = time.Now().Format(time.RFC3339)
