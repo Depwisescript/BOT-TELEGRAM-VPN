@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Depwisescript/BOT-TELEGRAM-VPN/internal/db"
+	"github.com/Depwisescript/BOT-TELEGRAM-VPN/internal/sys"
 	tele "gopkg.in/telebot.v3"
 )
 
@@ -31,6 +32,7 @@ func handleMenuAdmins(c tele.Context, b *tele.Bot) error {
 	btnCloudfront := markup.Data("🚀 Cloudfront Domain", "edit_cloudfront")
 	btnBanner := markup.Data("📜 Banner SSH", "edit_banner")
 	btnReset := markup.Data("🧹 Limpiar Historial", "reset_history")
+	btnDeepClean := markup.Data("🧹 Limpiar Basura SSD", "deep_cleanup")
 	btnClean := markup.Data("⚠️ Reset DB", "clean_db_confirm")
 	btnReboot := markup.Data("🔄 Reiniciar VPS", "reboot_vps_confirm")
 	btnBack := markup.Data("🔙 Volver", "back_main")
@@ -41,7 +43,7 @@ func handleMenuAdmins(c tele.Context, b *tele.Bot) error {
 		markup.Row(btnDel, btnInfo),
 		markup.Row(btnCloudflare, btnCloudfront),
 		markup.Row(btnBanner),
-		markup.Row(btnReset),
+		markup.Row(btnReset, btnDeepClean),
 		markup.Row(btnClean, btnReboot),
 		markup.Row(btnBack),
 	)
@@ -203,11 +205,26 @@ func handleCleanDBExec(c tele.Context, b *tele.Bot) error {
 	db.Update(func(data *db.ConfigData) error {
 		admins := data.Admins
 		// Resetear casi todo
-		*data = *defaultData() // Asumiendo que defaultData es accesible o replicando logica
+		*data = *defaultData()
 		data.Admins = admins
 		return nil
 	})
 	return handleMenuAdmins(c, b)
+}
+
+func handleDeepCleanup(c tele.Context, b *tele.Bot) error {
+	c.Edit("🧹 <b>Iniciando limpieza profunda...</b>\nEsto puede tardar unos segundos.", tele.ModeHTML)
+
+	report, err := sys.PerformFullCleanup()
+
+	markup := &tele.ReplyMarkup{}
+	markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_admins")))
+
+	if err != nil {
+		return c.Edit("❌ <b>Error durante la limpieza:</b>\n"+err.Error(), markup, tele.ModeHTML)
+	}
+
+	return c.Edit(report, markup, tele.ModeHTML)
 }
 
 // Replicamos defaultData si no es exportado, o lo exportamos en db/data.go
