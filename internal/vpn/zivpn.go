@@ -113,13 +113,20 @@ WantedBy=multi-user.target`
 	}
 
 	if dev != "" {
-		// Limpiar reglas previas para este puerto (evitar duplicados)
-		exec.Command("iptables", "-t", "nat", "-D", "PREROUTING", "-i", dev, "-p", "udp", "--dport", "6000:19999", "-j", "DNAT", "--to-destination", ":"+port).Run()
-		// Agregar regla
-		errNat := exec.Command("iptables", "-t", "nat", "-A", "PREROUTING", "-i", dev, "-p", "udp", "--dport", "6000:19999", "-j", "DNAT", "--to-destination", ":"+port).Run()
+		// Clean up old rules by description/comment if possible, or just flush usual ranges
+		_ = exec.Command("iptables", "-t", "nat", "-D", "PREROUTING", "-i", dev, "-p", "udp", "--dport", "6000:19999", "-j", "REDIRECT", "--to-port", port).Run()
+		_ = exec.Command("iptables", "-D", "INPUT", "-p", "udp", "--dport", port, "-j", "ACCEPT").Run()
+		_ = exec.Command("iptables", "-D", "INPUT", "-p", "udp", "--dport", "6000:19999", "-j", "ACCEPT").Run()
+
+		// Apply rules: Use REDIRECT for local processes instead of DNAT
+		errNat := exec.Command("iptables", "-t", "nat", "-A", "PREROUTING", "-i", dev, "-p", "udp", "--dport", "6000:19999", "-j", "REDIRECT", "--to-port", port).Run()
 		if errNat != nil {
-			return fmt.Errorf("fallo al configurar reglas de iptables: %v", errNat)
+			return fmt.Errorf("fallo al configurar nat redirect: %v", errNat)
 		}
+
+		// Explicitly allow in standard filter table
+		_ = exec.Command("iptables", "-I", "INPUT", "-p", "udp", "--dport", port, "-j", "ACCEPT").Run()
+		_ = exec.Command("iptables", "-I", "INPUT", "-p", "udp", "--dport", "6000:19999", "-j", "ACCEPT").Run()
 	}
 
 	return nil
@@ -136,9 +143,10 @@ func RemoveZiVPN() error {
 	devOut, _ := exec.Command("bash", "-c", "ip -4 route ls | grep default | grep -Po '(?<=dev )(\\S+)' | head -1").Output()
 	dev := strings.TrimSpace(string(devOut))
 	if dev != "" {
-		// Remove rules (best effort, don't worry if fail if rules didn't exist)
-		exec.Command("iptables", "-t", "nat", "-D", "PREROUTING", "-i", dev, "-p", "udp", "--dport", "6000:19999", "-j", "DNAT", "--to-destination", ":5667").Run()
-		// Try to find the actual port if possible? For now, we rely on the user uninstalling properly.
+		// Remove rules (best effort)
+		_ = exec.Command("iptables", "-t", "nat", "-D", "PREROUTING", "-i", dev, "-p", "udp", "--dport", "6000:19999", "-j", "REDIRECT", "--to-port", "5667").Run()
+		_ = exec.Command("iptables", "-D", "INPUT", "-p", "udp", "--dport", "5667", "-j", "ACCEPT").Run()
+		_ = exec.Command("iptables", "-D", "INPUT", "-p", "udp", "--dport", "6000:19999", "-j", "ACCEPT").Run()
 	}
 
 	exec.Command("systemctl", "daemon-reload").Run()
