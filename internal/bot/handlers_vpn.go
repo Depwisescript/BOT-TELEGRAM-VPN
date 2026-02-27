@@ -384,7 +384,7 @@ func processVPNSteps(step string, text string, chatID int64, c tele.Context, b *
 		b.Edit(lastMsg, res, markup, tele.ModeHTML)
 		return nil
 
-	case "awaiting_admin_id":
+	case "awaiting_vpn_admin_id":
 		id := text
 		delete(userSteps, chatID)
 		delete(lastBotMsg, chatID)
@@ -403,7 +403,7 @@ func processVPNSteps(step string, text string, chatID int64, c tele.Context, b *
 		b.Edit(lastMsg, fmt.Sprintf("✅ <b>ID %s</b> ahora es administrador.", id), markup, tele.ModeHTML)
 		return nil
 
-	case "awaiting_extrainfo":
+	case "awaiting_vpn_extrainfo":
 		info := text
 		delete(userSteps, chatID)
 		delete(lastBotMsg, chatID)
@@ -416,7 +416,7 @@ func processVPNSteps(step string, text string, chatID int64, c tele.Context, b *
 		b.Edit(lastMsg, "✅ <b>Información extra actualizada correctamente.</b>", markup, tele.ModeHTML)
 		return nil
 
-	case "awaiting_cloudflare":
+	case "awaiting_vpn_cloudflare":
 		domain := text
 		delete(userSteps, chatID)
 		delete(lastBotMsg, chatID)
@@ -427,7 +427,7 @@ func processVPNSteps(step string, text string, chatID int64, c tele.Context, b *
 		b.Edit(lastMsg, fmt.Sprintf("✅ <b>Dominio Cloudflare actualizado:</b> <code>%s</code>", domain), markup, tele.ModeHTML)
 		return nil
 
-	case "awaiting_cloudfront":
+	case "awaiting_vpn_cloudfront":
 		domain := text
 		delete(userSteps, chatID)
 		delete(lastBotMsg, chatID)
@@ -438,7 +438,7 @@ func processVPNSteps(step string, text string, chatID int64, c tele.Context, b *
 		b.Edit(lastMsg, fmt.Sprintf("✅ <b>Dominio Cloudfront actualizado:</b> <code>%s</code>", domain), markup, tele.ModeHTML)
 		return nil
 
-	case "awaiting_ssh_banner":
+	case "awaiting_vpn_ssh_banner":
 		banner := text
 		delete(userSteps, chatID)
 		delete(lastBotMsg, chatID)

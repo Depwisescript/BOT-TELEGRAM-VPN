@@ -87,7 +87,7 @@ func handleListAdmins(c tele.Context, b *tele.Bot) error {
 
 func handleAddAdminPrompt(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
-	userSteps[chatID] = "awaiting_admin_id"
+	userSteps[chatID] = "awaiting_vpn_admin_id"
 	lastBotMsg[chatID] = c.Message()
 
 	markup := &tele.ReplyMarkup{}
@@ -124,7 +124,7 @@ func handleDelAdminExec(c tele.Context, b *tele.Bot) error {
 
 func handleEditExtraInfoPrompt(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
-	userSteps[chatID] = "awaiting_extrainfo"
+	userSteps[chatID] = "awaiting_vpn_extrainfo"
 	lastBotMsg[chatID] = c.Message()
 
 	markup := &tele.ReplyMarkup{}
@@ -135,7 +135,7 @@ func handleEditExtraInfoPrompt(c tele.Context, b *tele.Bot) error {
 
 func handleEditCloudflarePrompt(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
-	userSteps[chatID] = "awaiting_cloudflare"
+	userSteps[chatID] = "awaiting_vpn_cloudflare"
 	lastBotMsg[chatID] = c.Message()
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "menu_admins")))
@@ -144,7 +144,7 @@ func handleEditCloudflarePrompt(c tele.Context, b *tele.Bot) error {
 
 func handleEditCloudfrontPrompt(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
-	userSteps[chatID] = "awaiting_cloudfront"
+	userSteps[chatID] = "awaiting_vpn_cloudfront"
 	lastBotMsg[chatID] = c.Message()
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "menu_admins")))
@@ -153,7 +153,7 @@ func handleEditCloudfrontPrompt(c tele.Context, b *tele.Bot) error {
 
 func handleEditBannerPrompt(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
-	userSteps[chatID] = "awaiting_ssh_banner"
+	userSteps[chatID] = "awaiting_vpn_ssh_banner"
 	lastBotMsg[chatID] = c.Message()
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "menu_admins")))
