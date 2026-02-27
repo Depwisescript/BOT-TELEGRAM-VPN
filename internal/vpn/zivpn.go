@@ -113,23 +113,20 @@ WantedBy=multi-user.target`
 	}
 
 	if dev != "" {
-		// LIMPIEZA AGRESIVA: Remover cualquier regla en PREROUTING que use el rango 6000:19999
-		// Ejecutamos varias veces para limpiar duplicados o reglas conflictivas (como la del puerto 7300)
-		for i := 0; i < 5; i++ {
-			_ = exec.Command("iptables", "-t", "nat", "-D", "PREROUTING", "-p", "udp", "--dport", "6000:19999", "-j", "DNAT").Run()
-			_ = exec.Command("iptables", "-t", "nat", "-D", "PREROUTING", "-p", "udp", "--dport", "6000:19999", "-j", "REDIRECT").Run()
-			_ = exec.Command("iptables", "-D", "INPUT", "-p", "udp", "--dport", port, "-j", "ACCEPT").Run()
-			_ = exec.Command("iptables", "-D", "INPUT", "-p", "udp", "--dport", "6000:19999", "-j", "ACCEPT").Run()
-		}
+		// LIMPIEZA ROBUSTA: Borrar CUALQUIER regla que mencione el rango 6000:19999
+		// Esto limpia incluso si la regla apunta a otro puerto (como el 7300 que vimos en los logs) o si hay duplicados
+		exec.Command("bash", "-c", "iptables -t nat -S PREROUTING | grep '6000:19999' | sed 's/-A/-D/' | while read line; do iptables -t nat $line; done").Run()
+		exec.Command("bash", "-c", "iptables -S INPUT | grep '6000:19999' | sed 's/-A/-D/' | while read line; do iptables $line; done").Run()
+		exec.Command("bash", "-c", "iptables -S INPUT | grep -w '"+port+"' | sed 's/-A/-D/' | while read line; do iptables $line; done").Run()
 
-		// APLICAR REGLAS: Usar -I (Insertar al inicio) para prioridad absoluta
+		// APLICAR REGLAS: Usar -I para prioridad máxima
 		_ = exec.Command("iptables", "-t", "nat", "-I", "PREROUTING", "1", "-i", dev, "-p", "udp", "--dport", "6000:19999", "-j", "REDIRECT", "--to-port", port).Run()
 
-		// Permitir en INPUT expresamente
+		// Permitir en INPUT
 		_ = exec.Command("iptables", "-I", "INPUT", "1", "-p", "udp", "--dport", port, "-j", "ACCEPT").Run()
 		_ = exec.Command("iptables", "-I", "INPUT", "1", "-p", "udp", "--dport", "6000:19999", "-j", "ACCEPT").Run()
 
-		// MASQUERADE persistente para retorno (Linode/KVM)
+		// MASQUERADE para retorno (Crucial para Linode/KVM)
 		_ = exec.Command("iptables", "-t", "nat", "-D", "POSTROUTING", "-o", dev, "-j", "MASQUERADE").Run()
 		_ = exec.Command("iptables", "-t", "nat", "-A", "POSTROUTING", "-o", dev, "-j", "MASQUERADE").Run()
 	}
@@ -148,10 +145,10 @@ func RemoveZiVPN() error {
 	devOut, _ := exec.Command("bash", "-c", "ip -4 route ls | grep default | grep -Po '(?<=dev )(\\S+)' | head -1").Output()
 	dev := strings.TrimSpace(string(devOut))
 	if dev != "" {
-		// Remove rules (best effort)
-		_ = exec.Command("iptables", "-t", "nat", "-D", "PREROUTING", "-i", dev, "-p", "udp", "--dport", "6000:19999", "-j", "REDIRECT", "--to-port", "5667").Run()
-		_ = exec.Command("iptables", "-D", "INPUT", "-p", "udp", "--dport", "5667", "-j", "ACCEPT").Run()
-		_ = exec.Command("iptables", "-D", "INPUT", "-p", "udp", "--dport", "6000:19999", "-j", "ACCEPT").Run()
+		// LIMPIEZA ROBUSTA al desinstalar
+		exec.Command("bash", "-c", "iptables -t nat -S PREROUTING | grep '6000:19999' | sed 's/-A/-D/' | while read line; do iptables -t nat $line; done").Run()
+		exec.Command("bash", "-c", "iptables -S INPUT | grep '6000:19999' | sed 's/-A/-D/' | while read line; do iptables $line; done").Run()
+		_ = exec.Command("iptables", "-t", "nat", "-D", "POSTROUTING", "-o", dev, "-j", "MASQUERADE").Run()
 	}
 
 	exec.Command("systemctl", "daemon-reload").Run()
