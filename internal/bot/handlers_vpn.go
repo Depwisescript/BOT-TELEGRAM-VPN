@@ -204,25 +204,61 @@ func handleInstallSlowDNS(c tele.Context, b *tele.Bot, lastMsg *tele.Message) er
 
 func handleInstallZivpn(c tele.Context, b *tele.Bot, lastMsg *tele.Message) error {
 	chatID := c.Chat().ID
-	userSteps[chatID] = "awaiting_vpn_zivpn_port"
-	lastBotMsg[chatID] = lastMsg
+	delete(userSteps, chatID)
+
+	b.Edit(lastMsg, "⏳ <i>Instalando ZiVPN (UDP Custom) en puerto automático 5667...</i>", tele.ModeHTML)
+
+	err := vpn.InstallZivpn("5667")
+	if err != nil {
+		markup := &tele.ReplyMarkup{}
+		markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_protocols")))
+		b.Edit(lastMsg, fmt.Sprintf("❌ <b>Error al instalar ZiVPN:</b>\n<pre>%v</pre>", err), markup, tele.ModeHTML)
+		return nil
+	}
+
+	res := "✅ <b>ZiVPN Instalado Correctamente</b>\n"
+	res += "━━━━━━━━━━━━━━\n"
+	res += "⚙️ <b>Puerto UDP:</b> <code>5667</code>\n"
+	res += "━━━━━━━━━━━━━━\n"
+	res += "<i>El servicio udp-custom ya está activo.</i>"
+
+	data, _ := db.Load()
+	data.Zivpn = true
+	db.Save(data)
 
 	markup := &tele.ReplyMarkup{}
-	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "cancelar_accion")))
-
-	b.Edit(lastMsg, "🛰️ <b>Instalador de ZiVPN (UDP Custom)</b>\n\n⚙️ <i>Escribe el puerto de escucha (Ej: 7300):</i>", markup, tele.ModeHTML)
+	markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_protocols")))
+	b.Edit(lastMsg, res, markup, tele.ModeHTML)
 	return nil
 }
 
 func handleInstallBadVPN(c tele.Context, b *tele.Bot, lastMsg *tele.Message) error {
 	chatID := c.Chat().ID
-	userSteps[chatID] = "awaiting_vpn_badvpn_port"
-	lastBotMsg[chatID] = lastMsg
+	delete(userSteps, chatID)
+
+	b.Edit(lastMsg, "⏳ <i>Instalando BadVPN (UDPGW) en puerto automático 7300...</i>", tele.ModeHTML)
+
+	err := vpn.InstallBadVPN("7300")
+	if err != nil {
+		markup := &tele.ReplyMarkup{}
+		markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_protocols")))
+		b.Edit(lastMsg, fmt.Sprintf("❌ <b>Error al instalar BadVPN:</b>\n<pre>%v</pre>", err), markup, tele.ModeHTML)
+		return nil
+	}
+
+	res := "✅ <b>BadVPN Instalado Correctamente</b>\n"
+	res += "━━━━━━━━━━━━━━\n"
+	res += "⚙️ <b>Puerto TCP:</b> <code>7300</code>\n"
+	res += "━━━━━━━━━━━━━━\n"
+	res += "<i>El demonio udpgw ya está escuchando.</i>"
+
+	data, _ := db.Load()
+	data.BadVPN = true
+	db.Save(data)
 
 	markup := &tele.ReplyMarkup{}
-	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "cancelar_accion")))
-
-	b.Edit(lastMsg, "🎮 <b>Instalador de BadVPN (UDPGW)</b>\n\n⚙️ <i>Escribe el puerto local (Ej: 7200):</i>", markup, tele.ModeHTML)
+	markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_protocols")))
+	b.Edit(lastMsg, res, markup, tele.ModeHTML)
 	return nil
 }
 
