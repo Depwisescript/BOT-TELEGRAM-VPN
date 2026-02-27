@@ -99,7 +99,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/proxydt --port ` + port + ` --response SSHTFREE
+ExecStart=/usr/bin/proxydt --port ` + port + ` --response https://t.me/Depwise2
 Restart=always
 RestartSec=3
 
