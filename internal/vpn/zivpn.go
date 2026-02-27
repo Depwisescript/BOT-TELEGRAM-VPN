@@ -28,6 +28,10 @@ func InstallZivpn(port string) error {
 	_ = exec.Command("apt-get", "install", "-y", "curl", "openssl", "iptables", "libc6-i386").Run()
 	installLibSSL11() // Reuse logic or call the one in the same package if available
 
+	// Habilitar IPv4 Forwarding (Requerido para NAT)
+	_ = exec.Command("sysctl", "-w", "net.ipv4.ip_forward=1").Run()
+	_ = exec.Command("bash", "-c", "echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf").Run()
+
 	archRaw := runtime.GOARCH
 	var binURL string
 
@@ -102,8 +106,20 @@ WantedBy=multi-user.target`
 	// Enrutamiento de UDP rango externo (6000-19999) hacia (port)
 	devOut, _ := exec.Command("bash", "-c", "ip -4 route ls | grep default | grep -Po '(?<=dev )(\\S+)' | head -1").Output()
 	dev := strings.TrimSpace(string(devOut))
+	if dev == "" {
+		// Fallback detection
+		devOut, _ = exec.Command("bash", "-c", "ip link show up | grep -v loopback | grep -v 'lo:' | head -1 | awk '{print $2}' | cut -d':' -f1").Output()
+		dev = strings.TrimSpace(string(devOut))
+	}
+
 	if dev != "" {
-		exec.Command("iptables", "-t", "nat", "-A", "PREROUTING", "-i", dev, "-p", "udp", "--dport", "6000:19999", "-j", "DNAT", "--to-destination", ":"+port).Run()
+		// Limpiar reglas previas para este puerto (evitar duplicados)
+		exec.Command("iptables", "-t", "nat", "-D", "PREROUTING", "-i", dev, "-p", "udp", "--dport", "6000:19999", "-j", "DNAT", "--to-destination", ":"+port).Run()
+		// Agregar regla
+		errNat := exec.Command("iptables", "-t", "nat", "-A", "PREROUTING", "-i", dev, "-p", "udp", "--dport", "6000:19999", "-j", "DNAT", "--to-destination", ":"+port).Run()
+		if errNat != nil {
+			return fmt.Errorf("fallo al configurar reglas de iptables: %v", errNat)
+		}
 	}
 
 	return nil
