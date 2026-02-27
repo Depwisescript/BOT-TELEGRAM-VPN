@@ -54,6 +54,9 @@ func finishZivpnCreation(password string, chatID int64, b *tele.Bot, lastMsg *te
 	res += "━━━━━━━━━━━━━━\n"
 	res += fmt.Sprintf("🔑 <b>Password:</b> <code>%s</code>\n", password)
 	res += "━━━━━━━━━━━━━━\n"
+	res += "📢 <b>Canal:</b> @Depwise2\n"
+	res += "👨‍💻 <b>Dev:</b> @Dan3651\n"
+	res += "━━━━━━━━━━━━━━\n"
 	res += "<i>El servidor UDP se ha reiniciado satisfactoriamente.</i>"
 
 	markup := &tele.ReplyMarkup{}

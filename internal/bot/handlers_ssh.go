@@ -281,6 +281,9 @@ func finishSSHCreation(c tele.Context, b *tele.Bot, chatID int64, lastMsg *tele.
 		exito += "━━━━━━━━━━━━━━\n"
 	}
 
+	exito += "📢 <b>Canal:</b> @Depwise2\n"
+	exito += "👨‍💻 <b>Dev:</b> @Dan3651\n"
+
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("🔙 Ir al Menú", "menu_crear")))
 
