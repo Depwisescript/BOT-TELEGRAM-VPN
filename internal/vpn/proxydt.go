@@ -13,7 +13,7 @@ import (
 func InstallProxyDT() error {
 	// 0. Install system dependencies
 	_ = exec.Command("apt-get", "update").Run()
-	_ = exec.Command("apt-get", "install", "-y", "curl", "psmisc").Run()
+	_ = exec.Command("apt-get", "install", "-y", "curl", "psmisc", "libc6-i386").Run()
 
 	arch := runtime.GOARCH
 
@@ -115,12 +115,19 @@ WantedBy=multi-user.target`
 	}
 
 	// 3. Simple verification
-	time.Sleep(1 * time.Second)
+	time.Sleep(1500 * time.Millisecond) // Esperar un poco más por seguridad
 	if err := exec.Command("systemctl", "is-active", "--quiet", svcName).Run(); err != nil {
+		// Capturar LOGS para diagnosticar
+		logCmd, _ := exec.Command("journalctl", "-u", svcName, "--no-pager", "-n", "10").Output()
+		logs := string(logCmd)
+		if logs == "" {
+			logs = "No se pudieron obtener logs del sistema."
+		}
+
 		_ = exec.Command("systemctl", "stop", svcName).Run()
 		_ = os.Remove(svcFile)
 		_ = exec.Command("systemctl", "daemon-reload").Run()
-		return fmt.Errorf("el servicio ProxyDT no pudo mantenerse activo en el puerto %s", port)
+		return fmt.Errorf("el servicio ProxyDT no pudo mantenerse activo en el puerto %s.\n\n📝 <b>LOGS:</b>\n<pre>%s</pre>", port, logs)
 	}
 
 	return nil
