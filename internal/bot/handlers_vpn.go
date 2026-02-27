@@ -45,22 +45,7 @@ func handleMenuProtocols(c tele.Context, b *tele.Bot) error {
 	return c.Edit(texto, markup, tele.ModeHTML)
 }
 
-// Interceptar "Ajustes Pro" para activar/desactivar el modo publico del bot
-func handleMenuAdmins(c tele.Context, b *tele.Bot) error {
-	markup := &tele.ReplyMarkup{}
-
-	btnMode := markup.Data("🔓 Cambiar Acceso (Pub/Priv)", "toggle_public_access")
-	btnList := markup.Data("📋 Ver Admins", "list_admins")
-	btnCancel := markup.Data("🔙 Volver", "back_main")
-
-	markup.Inline(
-		markup.Row(btnMode),
-		markup.Row(btnList),
-		markup.Row(btnCancel),
-	)
-
-	return c.Edit("⚙️ <b>Ajustes de Administrador</b>\n\nConfigura la privacidad y opciones críticas del bot.", markup, tele.ModeHTML)
-}
+// Mover handleMenuAdmins a handlers_admins.go
 
 func handleMenuBroadcast(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
@@ -396,6 +381,38 @@ func processVPNSteps(step string, text string, chatID int64, c tele.Context, b *
 		markup := &tele.ReplyMarkup{}
 		markup.Inline(markup.Row(markup.Data("🔙 Volver", "back_main")))
 		b.Edit(lastMsg, res, markup, tele.ModeHTML)
+		return nil
+
+	case "awaiting_admin_id":
+		id := text
+		delete(userSteps, chatID)
+		delete(lastBotMsg, chatID)
+
+		// Solo numérico
+		if _, err := strconv.ParseInt(id, 10, 64); err != nil {
+			b.Edit(lastMsg, "❌ <b>ID Inválido:</b> Debe ser un número.", markup, tele.ModeHTML)
+			return nil
+		}
+
+		db.Update(func(data *db.ConfigData) error {
+			data.Admins[id] = db.AdminInfo{Alias: "Admin"}
+			return nil
+		})
+
+		b.Edit(lastMsg, fmt.Sprintf("✅ <b>ID %s</b> ahora es administrador.", id), markup, tele.ModeHTML)
+		return nil
+
+	case "awaiting_extrainfo":
+		info := text
+		delete(userSteps, chatID)
+		delete(lastBotMsg, chatID)
+
+		db.Update(func(data *db.ConfigData) error {
+			data.ExtraInfo = info
+			return nil
+		})
+
+		b.Edit(lastMsg, "✅ <b>Información extra actualizada correctamente.</b>", markup, tele.ModeHTML)
 		return nil
 
 	case "awaiting_vpn_slowdns_domain":

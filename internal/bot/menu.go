@@ -137,6 +137,20 @@ func StartBot() {
 	// Callbacks Dinámicos (One-Tap Selection)
 	b.Handle("\fed_user:", func(c tele.Context) error { return handleEditSelection(c, b) })
 	b.Handle("\fdel_confirm:", func(c tele.Context) error { return handleDeleteSelection(c, b) })
+	b.Handle("\fdel_adm_exec:", func(c tele.Context) error { return handleDelAdminExec(c, b) })
+
+	// Ajustes Pro
+	b.Handle(&tele.Btn{Unique: "toggle_public_access"}, func(c tele.Context) error { return handleTogglePublicAccess(c, b) })
+	b.Handle(&tele.Btn{Unique: "list_admins"}, func(c tele.Context) error { return handleListAdmins(c, b) })
+	b.Handle(&tele.Btn{Unique: "add_admin"}, func(c tele.Context) error { return handleAddAdminPrompt(c, b) })
+	b.Handle(&tele.Btn{Unique: "del_admin_menu"}, func(c tele.Context) error { return handleDelAdminMenu(c, b) })
+	b.Handle(&tele.Btn{Unique: "edit_extrainfo"}, func(c tele.Context) error { return handleEditExtraInfoPrompt(c, b) })
+	b.Handle(&tele.Btn{Unique: "reset_history"}, func(c tele.Context) error { return handleResetHistoryConfirm(c, b) })
+	b.Handle(&tele.Btn{Unique: "reset_history_exec"}, func(c tele.Context) error { return handleResetHistoryExec(c, b) })
+	b.Handle(&tele.Btn{Unique: "reboot_vps_confirm"}, func(c tele.Context) error { return handleServerRebootConfirm(c, b) })
+	b.Handle(&tele.Btn{Unique: "reboot_vps_exec"}, func(c tele.Context) error { return handleServerRebootExec(c, b) })
+	b.Handle(&tele.Btn{Unique: "clean_db_confirm"}, func(c tele.Context) error { return handleCleanDBConfirm(c, b) })
+	b.Handle(&tele.Btn{Unique: "clean_db_exec"}, func(c tele.Context) error { return handleCleanDBExec(c, b) })
 
 	// Generar Usuario SSH / ZIVPN Handler
 	b.Handle(&tele.Btn{Unique: "crear_ssh"}, func(c tele.Context) error {
