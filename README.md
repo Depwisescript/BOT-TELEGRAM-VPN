@@ -65,7 +65,7 @@ apt update && apt install -y git && git clone https://github.com/Depwisescript/B
 
 Este proyecto es desarrollado y mantenido con pasión por:
 
-- **👨‍💻 Desarrollador:** [Depwisescript](https://github.com/Depwisescript)
+- **👨‍💻 Desarrollador:** [@Dan3651](https://t.me/Dan3651)
 - **📢 Canal Oficial:** [Depwise Channel](https://t.me/Depwise2)
 
 ---
