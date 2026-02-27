@@ -146,7 +146,7 @@ func handleTextInputs(c tele.Context, b *tele.Bot) error {
 		delete(lastBotMsg, chatID)
 
 		markup := &tele.ReplyMarkup{}
-		markup.Inline(markup.Row(markup.Data("🔙 Volver al Menú", "back_main")))
+		markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_eliminar")))
 		b.Edit(lastMsg, fmt.Sprintf("✅ Usuario <b>%s</b> eliminado correctamente del servidor.", text), markup, tele.ModeHTML)
 		return nil
 
@@ -248,7 +248,7 @@ func finishSSHCreation(c tele.Context, b *tele.Bot, chatID int64, lastMsg *tele.
 	}
 
 	markup := &tele.ReplyMarkup{}
-	markup.Inline(markup.Row(markup.Data("🔙 Ir al Menú", "back_main")))
+	markup.Inline(markup.Row(markup.Data("🔙 Ir al Menú", "menu_crear")))
 
 	b.Edit(lastMsg, exito, markup, tele.ModeHTML)
 	return nil

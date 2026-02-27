@@ -10,7 +10,7 @@ import (
 
 func handleCrearZivpn(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
-	
+
 	// Solo admins o si es publico (aunque zivpn suele ser mas restrictivo)
 	data, _ := db.Load()
 	if !data.PublicAccess && !isAdmin(chatID) {
@@ -45,7 +45,7 @@ func finishZivpnCreation(password string, chatID int64, b *tele.Bot, lastMsg *te
 	if data.ZivpnOwners == nil {
 		data.ZivpnOwners = make(map[string]string)
 	}
-	
+
 	data.ZivpnUsers[password] = "Activado"
 	data.ZivpnOwners[password] = fmt.Sprintf("%d", chatID)
 	db.Save(data)
@@ -57,7 +57,7 @@ func finishZivpnCreation(password string, chatID int64, b *tele.Bot, lastMsg *te
 	res += "<i>El servidor UDP se ha reiniciado satisfactoriamente.</i>"
 
 	markup := &tele.ReplyMarkup{}
-	markup.Inline(markup.Row(markup.Data("🔙 Volver", "back_main")))
+	markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_protocols")))
 
 	_, err = b.Edit(lastMsg, res, markup, tele.ModeHTML)
 	return err

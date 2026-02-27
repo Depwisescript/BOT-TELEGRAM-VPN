@@ -23,8 +23,11 @@ func handleInstallUDPCustom(c tele.Context, b *tele.Bot) error {
 	port := "36712"
 
 	err := vpn.InstallUDPCustom(port)
+	markup := &tele.ReplyMarkup{}
+	markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_protocols")))
+
 	if err != nil {
-		return c.Send(fmt.Sprintf("❌ <b>Error al instalar UDP Custom:</b>\n%v", err), tele.ModeHTML)
+		return c.Edit(fmt.Sprintf("❌ <b>Error al instalar UDP Custom:</b>\n%v", err), markup, tele.ModeHTML)
 	}
 
 	db.Update(func(data *db.ConfigData) error {
@@ -32,15 +35,18 @@ func handleInstallUDPCustom(c tele.Context, b *tele.Bot) error {
 		return nil
 	})
 
-	return c.Edit("✅ <b>¡UDP Custom instalado con éxito!</b>\n\n🚀 <b>Puerto:</b> 1-65535 (Redireccionado)\n🔑 <b>Auth:</b> Usuarios SSH del sistema\n\nYa puedes conectar desde la app <b>HTTP Custom</b> usando el método <b>UDP Custom</b>.", tele.ModeHTML)
+	return c.Edit("✅ <b>¡UDP Custom instalado con éxito!</b>\n\n🚀 <b>Puerto:</b> 1-65535 (Redireccionado)\n🔑 <b>Auth:</b> Usuarios SSH del sistema\n\nYa puedes conectar desde la app <b>HTTP Custom</b> usando el método <b>UDP Custom</b>.", markup, tele.ModeHTML)
 }
 
 func handleUninstallUDPCustom(c tele.Context, b *tele.Bot) error {
 	c.Edit("⏳ <b>Desinstalando UDP Custom...</b>", tele.ModeHTML)
 
 	err := vpn.RemoveUDPCustom()
+	markup := &tele.ReplyMarkup{}
+	markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_protocols")))
+
 	if err != nil {
-		return c.Send(fmt.Sprintf("❌ <b>Error al desinstalar:</b>\n%v", err), tele.ModeHTML)
+		return c.Edit(fmt.Sprintf("❌ <b>Error al desinstalar:</b>\n%v", err), markup, tele.ModeHTML)
 	}
 
 	db.Update(func(data *db.ConfigData) error {
@@ -48,5 +54,5 @@ func handleUninstallUDPCustom(c tele.Context, b *tele.Bot) error {
 		return nil
 	})
 
-	return c.Edit("🗑️ <b>UDP Custom desinstalado correctamente.</b>", tele.ModeHTML)
+	return c.Edit("🗑️ <b>UDP Custom desinstalado correctamente.</b>", markup, tele.ModeHTML)
 }
