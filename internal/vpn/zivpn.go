@@ -50,7 +50,7 @@ func InstallZivpn(port string) error {
 
 	// configuraciones
 	os.MkdirAll("/etc/zivpn", 0755)
-	configJSON := `{"listen": ":` + port + `", "cert": "/etc/zivpn/zivpn.crt", "key": "/etc/zivpn/zivpn.key", "max_conn": 0}`
+	configJSON := `{"listen": ":` + port + `", "cert": "/etc/zivpn/zivpn.crt", "key": "/etc/zivpn/zivpn.key", "max_conn": 0, "auth": {"mode": "passwords", "config": []}}`
 	os.WriteFile("/etc/zivpn/config.json", []byte(configJSON), 0644)
 
 	// certificados ssl requeridos internamente
