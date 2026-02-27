@@ -27,6 +27,7 @@ type ConfigData struct {
 	Falcon           string               `json:"falcon"`     // Port as string for compatibility
 	Dropbear         string               `json:"dropbear"`   // Port as string for compatibility
 	SSLTunnel        string               `json:"ssl_tunnel"` // Port as string for compatibility
+	SSHBanner        string               `json:"ssh_banner"`
 }
 
 type AdminInfo struct {

@@ -27,6 +27,9 @@ func handleMenuAdmins(c tele.Context, b *tele.Bot) error {
 	btnAdd := markup.Data("➕ Agregar Admin", "add_admin")
 	btnDel := markup.Data("➖ Quitar Admin", "del_admin_menu")
 	btnInfo := markup.Data("📝 Editar Info Extra", "edit_extrainfo")
+	btnCloudflare := markup.Data("☁️ Cloudflare Domain", "edit_cloudflare")
+	btnCloudfront := markup.Data("🚀 Cloudfront Domain", "edit_cloudfront")
+	btnBanner := markup.Data("📜 Banner SSH", "edit_banner")
 	btnReset := markup.Data("🧹 Limpiar Historial", "reset_history")
 	btnClean := markup.Data("⚠️ Reset DB", "clean_db_confirm")
 	btnReboot := markup.Data("🔄 Reiniciar VPS", "reboot_vps_confirm")
@@ -36,6 +39,8 @@ func handleMenuAdmins(c tele.Context, b *tele.Bot) error {
 		markup.Row(btnToggle),
 		markup.Row(btnList, btnAdd),
 		markup.Row(btnDel, btnInfo),
+		markup.Row(btnCloudflare, btnCloudfront),
+		markup.Row(btnBanner),
 		markup.Row(btnReset),
 		markup.Row(btnClean, btnReboot),
 		markup.Row(btnBack),
@@ -124,6 +129,33 @@ func handleEditExtraInfoPrompt(c tele.Context, b *tele.Bot) error {
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "menu_admins")))
 
 	return c.Edit("📝 <b>Editar Información Extra</b>\n\nEsta información aparecerá en el menú /info.\n\n✏️ <i>Escribe el nuevo texto (soporta HTML):</i>", markup, tele.ModeHTML)
+}
+
+func handleEditCloudflarePrompt(c tele.Context, b *tele.Bot) error {
+	chatID := c.Chat().ID
+	userSteps[chatID] = "awaiting_cloudflare"
+	lastBotMsg[chatID] = c.Message()
+	markup := &tele.ReplyMarkup{}
+	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "menu_admins")))
+	return c.Edit("☁️ <b>Configurar Dominio Cloudflare</b>\n\n✏️ <i>Escribe el dominio :</i>\n\nEjemplo: <code>mi.host.com</code>", markup, tele.ModeHTML)
+}
+
+func handleEditCloudfrontPrompt(c tele.Context, b *tele.Bot) error {
+	chatID := c.Chat().ID
+	userSteps[chatID] = "awaiting_cloudfront"
+	lastBotMsg[chatID] = c.Message()
+	markup := &tele.ReplyMarkup{}
+	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "menu_admins")))
+	return c.Edit("🚀 <b>Configurar Dominio Cloudfront</b>\n\n✏️ <i>Escribe el dominio:</i>\n\nEjemplo: <code>xyz123.cloudfront.net</code>", markup, tele.ModeHTML)
+}
+
+func handleEditBannerPrompt(c tele.Context, b *tele.Bot) error {
+	chatID := c.Chat().ID
+	userSteps[chatID] = "awaiting_ssh_banner"
+	lastBotMsg[chatID] = c.Message()
+	markup := &tele.ReplyMarkup{}
+	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "menu_admins")))
+	return c.Edit("📜 <b>Configurar Banner SSH</b>\n\n✏️ <i>Escribe el texto del banner (admite HTML básico):</i>\n\nEsto se mostrará al conectar por SSH.", markup, tele.ModeHTML)
 }
 
 func handleResetHistoryConfirm(c tele.Context, b *tele.Bot) error {

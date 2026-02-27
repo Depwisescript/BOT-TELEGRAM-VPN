@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/Depwisescript/BOT-TELEGRAM-VPN/internal/db"
+	"github.com/Depwisescript/BOT-TELEGRAM-VPN/internal/sys"
 	"github.com/Depwisescript/BOT-TELEGRAM-VPN/internal/vpn"
 	tele "gopkg.in/telebot.v3"
 )
@@ -413,6 +414,45 @@ func processVPNSteps(step string, text string, chatID int64, c tele.Context, b *
 		})
 
 		b.Edit(lastMsg, "✅ <b>Información extra actualizada correctamente.</b>", markup, tele.ModeHTML)
+		return nil
+
+	case "awaiting_cloudflare":
+		domain := text
+		delete(userSteps, chatID)
+		delete(lastBotMsg, chatID)
+		db.Update(func(data *db.ConfigData) error {
+			data.CloudflareDomain = domain
+			return nil
+		})
+		b.Edit(lastMsg, fmt.Sprintf("✅ <b>Dominio Cloudflare actualizado:</b> <code>%s</code>", domain), markup, tele.ModeHTML)
+		return nil
+
+	case "awaiting_cloudfront":
+		domain := text
+		delete(userSteps, chatID)
+		delete(lastBotMsg, chatID)
+		db.Update(func(data *db.ConfigData) error {
+			data.CloudfrontDomain = domain
+			return nil
+		})
+		b.Edit(lastMsg, fmt.Sprintf("✅ <b>Dominio Cloudfront actualizado:</b> <code>%s</code>", domain), markup, tele.ModeHTML)
+		return nil
+
+	case "awaiting_ssh_banner":
+		banner := text
+		delete(userSteps, chatID)
+		delete(lastBotMsg, chatID)
+		db.Update(func(data *db.ConfigData) error {
+			data.SSHBanner = banner
+			return nil
+		})
+		// Aplicar al sistema
+		err := sys.SetSSHBanner(banner)
+		if err != nil {
+			b.Edit(lastMsg, fmt.Sprintf("⚠️ <b>Banner guardado en DB pero error al aplicar al sistema:</b>\n%v", err), markup, tele.ModeHTML)
+		} else {
+			b.Edit(lastMsg, "✅ <b>Banner SSH actualizado y aplicado al sistema.</b>", markup, tele.ModeHTML)
+		}
 		return nil
 
 	case "awaiting_vpn_slowdns_domain":

@@ -61,6 +61,12 @@ func handleInfo(c tele.Context, b *tele.Bot) error {
 		info += fmt.Sprintf("🌐 <b>ProxyDT:</b> puertos %s\n", strings.Join(ports, ", "))
 		active = true
 	}
+	if data.CloudflareDomain != "" {
+		info += fmt.Sprintf("☁️ <b>Cloudflare DNS:</b> <code>%s</code>\n", data.CloudflareDomain)
+	}
+	if data.CloudfrontDomain != "" {
+		info += fmt.Sprintf("🚀 <b>Cloudfront DNS:</b> <code>%s</code>\n", data.CloudfrontDomain)
+	}
 
 	if !active {
 		info += "<i>Ningún protocolo instalado.</i>\n"

@@ -258,6 +258,12 @@ func finishSSHCreation(c tele.Context, b *tele.Bot, chatID int64, lastMsg *tele.
 	if data.Dropbear != "" {
 		protoInfo += fmt.Sprintf("🐻 <b>Dropbear:</b> <code>%s</code>\n", data.Dropbear)
 	}
+	if data.CloudflareDomain != "" {
+		protoInfo += fmt.Sprintf("☁️ <b>Cloudflare DNS:</b> <code>%s</code>\n", data.CloudflareDomain)
+	}
+	if data.CloudfrontDomain != "" {
+		protoInfo += fmt.Sprintf("🚀 <b>Cloudfront DNS:</b> <code>%s</code>\n", data.CloudfrontDomain)
+	}
 	if data.SSLTunnel != "" {
 		protoInfo += fmt.Sprintf("📜 <b>SSL Tunnel:</b> <code>%s</code>\n", data.SSLTunnel)
 	}
