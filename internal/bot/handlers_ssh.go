@@ -82,6 +82,24 @@ func handleTextInputs(c tele.Context, b *tele.Bot) error {
 
 	case "awaiting_ssh_password":
 		tempData[chatID]["password"] = text
+
+		// Si NO es SuperAdmin, auto-asignar valores según rol
+		if !isSuperAdminID(chatID) {
+			if isAdmin(chatID) {
+				// Admin: 7 días, 20 conexiones, 30 GB
+				tempData[chatID]["days"] = "7"
+				tempData[chatID]["limit"] = "20"
+				tempData[chatID]["quota"] = "30"
+			} else {
+				// Público: 3 días, 1 conexión, 6 GB
+				tempData[chatID]["days"] = "3"
+				tempData[chatID]["limit"] = "1"
+				tempData[chatID]["quota"] = "6"
+			}
+			return finishSSHCreation(c, b, chatID, lastMsg)
+		}
+
+		// SuperAdmin: flujo completo, preguntar días
 		userSteps[chatID] = "awaiting_ssh_days"
 		b.Edit(lastMsg, "⏳ <i>¿Cuántos días de duración (ej: 30)?</i>", markupCancel, tele.ModeHTML)
 		return nil
