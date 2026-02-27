@@ -38,73 +38,76 @@ func StartBot() {
 	b.Handle("/start", func(c tele.Context) error {
 		return handleStart(c, b)
 	})
-	
+
 	b.Handle("/menu", func(c tele.Context) error {
 		return handleStart(c, b)
 	})
 
-    // Text Interceptor para conversacion
+	// Text Interceptor para conversacion
 	b.Handle(tele.OnText, func(c tele.Context) error {
 		return handleTextInputs(c, b)
 	})
 
-    // Opciones del Menú Principal
-    b.Handle(&tele.Btn{Unique: "menu_crear"}, func(c tele.Context) error {
-         return c.Edit(menuCrearText(), menuCrearMarkup())
-    })
-    b.Handle(&tele.Btn{Unique: "menu_info"}, func(c tele.Context) error {
-         return handleInfo(c, b)
-    })
-    b.Handle(&tele.Btn{Unique: "my_stats"}, func(c tele.Context) error {
-         return handleMyStats(c, b)
-    })
-    b.Handle(&tele.Btn{Unique: "menu_eliminar"}, func(c tele.Context) error {
-         return handleMenuEliminar(c, b)
-    })
-    
-    // Opciones de Configuración Avanzada
-    b.Handle(&tele.Btn{Unique: "menu_editar"}, func(c tele.Context) error {
-         return handleMenuEditar(c, b)
-    })
-    b.Handle(&tele.Btn{Unique: "edit_pass"}, func(c tele.Context) error {
-         return handleEditPass(c, b)
-    })
-    b.Handle(&tele.Btn{Unique: "edit_renew"}, func(c tele.Context) error {
-         return handleEditRenew(c, b)
-    })
+	// Opciones del Menú Principal
+	b.Handle(&tele.Btn{Unique: "menu_crear"}, func(c tele.Context) error {
+		return c.Edit(menuCrearText(), menuCrearMarkup())
+	})
+	b.Handle(&tele.Btn{Unique: "menu_info"}, func(c tele.Context) error {
+		return handleInfo(c, b)
+	})
+	b.Handle(&tele.Btn{Unique: "my_stats"}, func(c tele.Context) error {
+		return handleMyStats(c, b)
+	})
+	b.Handle(&tele.Btn{Unique: "menu_eliminar"}, func(c tele.Context) error {
+		return handleMenuEliminar(c, b)
+	})
 
-    b.Handle(&tele.Btn{Unique: "menu_protocols"}, func(c tele.Context) error {
-         return handleMenuProtocols(c, b)
-    })
-    b.Handle(&tele.Btn{Unique: "menu_admins"}, func(c tele.Context) error {
-         return handleMenuAdmins(c, b)
-    })
-    b.Handle(&tele.Btn{Unique: "menu_online"}, func(c tele.Context) error {
-         return handleMenuOnline(c, b)
-    })
-    
-    // VPNs
-    b.Handle(&tele.Btn{Unique: "install_slowdns"}, func(c tele.Context) error {
-         return handleInstallSlowDNS(c, b, c.Message())
-    })
-    b.Handle(&tele.Btn{Unique: "install_zivpn"}, func(c tele.Context) error {
-         return handleInstallZivpn(c, b, c.Message())
-    })
-    b.Handle(&tele.Btn{Unique: "install_badvpn"}, func(c tele.Context) error {
-         return handleInstallBadVPN(c, b, c.Message())
-    })
+	// Opciones de Configuración Avanzada
+	b.Handle(&tele.Btn{Unique: "menu_editar"}, func(c tele.Context) error {
+		return handleMenuEditar(c, b)
+	})
+	b.Handle(&tele.Btn{Unique: "edit_pass"}, func(c tele.Context) error {
+		return handleEditPass(c, b)
+	})
+	b.Handle(&tele.Btn{Unique: "edit_renew"}, func(c tele.Context) error {
+		return handleEditRenew(c, b)
+	})
+
+	b.Handle(&tele.Btn{Unique: "menu_protocols"}, func(c tele.Context) error {
+		return handleMenuProtocols(c, b)
+	})
+	b.Handle(&tele.Btn{Unique: "menu_admins"}, func(c tele.Context) error {
+		return handleMenuAdmins(c, b)
+	})
+	b.Handle(&tele.Btn{Unique: "menu_online"}, func(c tele.Context) error {
+		return handleMenuOnline(c, b)
+	})
+
+	// VPNs
+	b.Handle(&tele.Btn{Unique: "install_slowdns"}, func(c tele.Context) error {
+		return handleInstallSlowDNS(c, b, c.Message())
+	})
+	b.Handle(&tele.Btn{Unique: "install_zivpn"}, func(c tele.Context) error {
+		return handleInstallZivpn(c, b, c.Message())
+	})
+	b.Handle(&tele.Btn{Unique: "install_badvpn"}, func(c tele.Context) error {
+		return handleInstallBadVPN(c, b, c.Message())
+	})
 	b.Handle(&tele.Btn{Unique: "install_falcon"}, func(c tele.Context) error {
-         return handleInstallFalcon(c, b, c.Message())
-    })
+		return handleInstallFalcon(c, b, c.Message())
+	})
 	b.Handle(&tele.Btn{Unique: "install_ssl"}, func(c tele.Context) error {
-         return handleInstallSSL(c, b, c.Message())
-    })
+		return handleInstallSSL(c, b, c.Message())
+	})
 	b.Handle(&tele.Btn{Unique: "install_dropbear"}, func(c tele.Context) error {
-         return handleInstallDropbear(c, b, c.Message())
-    })
+		return handleInstallDropbear(c, b, c.Message())
+	})
 	b.Handle(&tele.Btn{Unique: "install_proxydt"}, func(c tele.Context) error {
-         return handleInstallProxyDT(c, b, c.Message())
-    })
+		return handleInstallProxyDT(c, b, c.Message())
+	})
+	b.Handle(&tele.Btn{Unique: "install_udpcustom"}, func(c tele.Context) error {
+		return handleInstallUDPCustom(c, b)
+	})
 
 	// Sub-Menús de Protocolos
 	b.Handle(&tele.Btn{Unique: "submenu_slowdns"}, func(c tele.Context) error { return handleSubMenuSlowDNS(c, b) })
@@ -114,6 +117,7 @@ func StartBot() {
 	b.Handle(&tele.Btn{Unique: "submenu_ssl"}, func(c tele.Context) error { return handleSubMenuSSL(c, b) })
 	b.Handle(&tele.Btn{Unique: "submenu_dropbear"}, func(c tele.Context) error { return handleSubMenuDropbear(c, b) })
 	b.Handle(&tele.Btn{Unique: "submenu_proxydt"}, func(c tele.Context) error { return handleSubMenuProxyDT(c, b) })
+	b.Handle(&tele.Btn{Unique: "submenu_udpcustom"}, func(c tele.Context) error { return handleSubMenuUDPCustom(c, b) })
 	b.Handle(&tele.Btn{Unique: "menu_protocols"}, func(c tele.Context) error { return handleMenuProtocols(c, b) })
 
 	// Desinstaladores
@@ -124,27 +128,28 @@ func StartBot() {
 	b.Handle(&tele.Btn{Unique: "uninstall_ssl"}, func(c tele.Context) error { return handleUninstallProtocol(c, b, "SSL Tunnel") })
 	b.Handle(&tele.Btn{Unique: "uninstall_dropbear"}, func(c tele.Context) error { return handleUninstallProtocol(c, b, "Dropbear") })
 	b.Handle(&tele.Btn{Unique: "uninstall_proxydt"}, func(c tele.Context) error { return handleUninstallProtocol(c, b, "ProxyDT") })
+	b.Handle(&tele.Btn{Unique: "uninstall_udpcustom"}, func(c tele.Context) error { return handleUninstallUDPCustom(c, b) })
 
-    // Generar Usuario SSH / ZIVPN Handler
-    b.Handle(&tele.Btn{Unique: "crear_ssh"}, func(c tele.Context) error {
-         return handleCrearSSH(c, b)
-    })
-    b.Handle(&tele.Btn{Unique: "crear_zivpn"}, func(c tele.Context) error {
-         return handleCrearZivpn(c, b)
-    })
-    b.Handle(&tele.Btn{Unique: "ssh_rnd_pass"}, func(c tele.Context) error {
-         return handleRandomPass(c, b)
-    })
-    b.Handle(&tele.Btn{Unique: "cancelar_accion"}, func(c tele.Context) error {
-         return handleCancel(c, b)
-    })
-    
-    b.Handle(&tele.Btn{Unique: "back_main"}, func(c tele.Context) error {
-         return handleStart(c, b) // Vuelve al inicio redibujando o editando
-    })
+	// Generar Usuario SSH / ZIVPN Handler
+	b.Handle(&tele.Btn{Unique: "crear_ssh"}, func(c tele.Context) error {
+		return handleCrearSSH(c, b)
+	})
+	b.Handle(&tele.Btn{Unique: "crear_zivpn"}, func(c tele.Context) error {
+		return handleCrearZivpn(c, b)
+	})
+	b.Handle(&tele.Btn{Unique: "ssh_rnd_pass"}, func(c tele.Context) error {
+		return handleRandomPass(c, b)
+	})
+	b.Handle(&tele.Btn{Unique: "cancelar_accion"}, func(c tele.Context) error {
+		return handleCancel(c, b)
+	})
 
-    // Iniciar hilo de auto-limpieza (Rutina concurrente)
-    go sys.AutoCleanupLoop(b)
+	b.Handle(&tele.Btn{Unique: "back_main"}, func(c tele.Context) error {
+		return handleStart(c, b) // Vuelve al inicio redibujando o editando
+	})
+
+	// Iniciar hilo de auto-limpieza (Rutina concurrente)
+	go sys.AutoCleanupLoop(b)
 
 	log.Println("Bot iniciado correctamente...")
 	b.Start()
@@ -199,21 +204,21 @@ func handleStart(c tele.Context, b *tele.Bot) error {
 func buildMainMenuText(data *db.ConfigData) string {
 	texto := "💎 <b>BOT TELEGRAM DEPWISE V6.7 (GO EDITION)</b>\n"
 	texto += "<i>Panel de Control Avanzado</i>\n\n"
-	
+
 	stats := sys.GetSystemStats()
-	
+
 	// CPU Formatter
 	barraCPU := sys.GenerarBarra(stats.CPUUsage, 100.0, 10)
 	texto += fmt.Sprintf("🧠 <b>CPU:</b> [%s] <code>%.1f%%</code> (%d Cores)\n", barraCPU, stats.CPUUsage, stats.Cores)
-	
+
 	// RAM Formatter
 	barraRAM := sys.GenerarBarra(float64(stats.RAMUsed), float64(stats.RAMTotal), 10)
 	texto += fmt.Sprintf("💾 <b>RAM:</b> [%s] <code>%dMB / %dMB</code>\n", barraRAM, stats.RAMUsed, stats.RAMTotal)
-	
+
 	// Disco
 	barraDisk := sys.GenerarBarra(float64(stats.DiskUsed), float64(stats.DiskTotal), 10)
 	texto += fmt.Sprintf("💽 <b>DISCO:</b> [%s] <code>%dGB / %dGB</code>\n", barraDisk, stats.DiskUsed, stats.DiskTotal)
-	
+
 	texto += fmt.Sprintf("⏱️ <b>Uptime:</b> <code>%s</code>\n\n", stats.UptimeStr)
 
 	if !data.PublicAccess {
@@ -224,7 +229,7 @@ func buildMainMenuText(data *db.ConfigData) string {
 
 func buildMainMenuMarkup(chatID int64) *tele.ReplyMarkup {
 	menu := &tele.ReplyMarkup{}
-	
+
 	btnCrear := menu.Data("👤 Crear SSH", "menu_crear")
 	btnInfo := menu.Data("📡 Info Servidor", "menu_info")
 	btnStats := menu.Data("📊 Mis Consumos", "my_stats")
@@ -272,19 +277,19 @@ func buildMainMenuMarkup(chatID int64) *tele.ReplyMarkup {
 }
 
 func menuCrearText() string {
-    return "📝 <b>¿Qué deseas crear?</b>"
+	return "📝 <b>¿Qué deseas crear?</b>"
 }
 
 func menuCrearMarkup() *tele.ReplyMarkup {
-    menu := &tele.ReplyMarkup{}
-    btnSSH := menu.Data("👤 Cliente SSH", "crear_ssh")
-    btnZivpn := menu.Data("🛰️ Acceso ZIVPN", "crear_zivpn")
-    btnBack := menu.Data("🔙 Volver", "back_main")
-    
-    menu.Inline(
-        menu.Row(btnSSH),
-        menu.Row(btnZivpn),
-        menu.Row(btnBack),
-    )
-    return menu
+	menu := &tele.ReplyMarkup{}
+	btnSSH := menu.Data("👤 Cliente SSH", "crear_ssh")
+	btnZivpn := menu.Data("🛰️ Acceso ZIVPN", "crear_zivpn")
+	btnBack := menu.Data("🔙 Volver", "back_main")
+
+	menu.Inline(
+		menu.Row(btnSSH),
+		menu.Row(btnZivpn),
+		menu.Row(btnBack),
+	)
+	return menu
 }

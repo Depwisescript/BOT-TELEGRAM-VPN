@@ -16,6 +16,7 @@ func handleMenuProtocols(c tele.Context, b *tele.Bot) error {
 	btnSlowDNS := markup.Data("🐢 SlowDNS", "submenu_slowdns")
 	btnZiVPN := markup.Data("🛰️ ZiVPN", "submenu_zivpn")
 	btnBadVPN := markup.Data("🎮 BadVPN", "submenu_badvpn")
+	btnUDPCustom := markup.Data("📡 UDP Custom", "submenu_udpcustom")
 	btnProxy := markup.Data("🌐 ProxyDT", "submenu_proxydt")
 	btnFalcon := markup.Data("🦅 Falcon", "submenu_falcon")
 	btnSSL := markup.Data("📜 SSL Tunnel", "submenu_ssl")
@@ -24,9 +25,10 @@ func handleMenuProtocols(c tele.Context, b *tele.Bot) error {
 
 	markup.Inline(
 		markup.Row(btnSlowDNS, btnZiVPN),
-		markup.Row(btnBadVPN, btnProxy),
-		markup.Row(btnFalcon, btnSSL),
-		markup.Row(btnDropbear, btnCancel),
+		markup.Row(btnBadVPN, btnUDPCustom),
+		markup.Row(btnProxy, btnFalcon),
+		markup.Row(btnSSL, btnDropbear),
+		markup.Row(btnCancel),
 	)
 
 	texto := "⚙️ <b>Gestor de Protocolos VPN</b>\n\n"
@@ -86,6 +88,24 @@ func handleSubMenuZiVPN(c tele.Context, b *tele.Bot) error {
 	markup.Inline(markup.Row(btnInst), markup.Row(btnUninst), markup.Row(btnBack))
 
 	texto := fmt.Sprintf("🛰️ <b>Gestión de ZiVPN</b>\n\n📊 <b>Estado:</b> %s\n\n¿Qué deseas hacer?", status)
+	return c.Edit(texto, markup, tele.ModeHTML)
+}
+
+func handleSubMenuUDPCustom(c tele.Context, b *tele.Bot) error {
+	data, _ := db.Load()
+	status := "❌ Desinstalado"
+	if data.UDPCustom {
+		status = "✅ Instalado"
+	}
+
+	markup := &tele.ReplyMarkup{}
+	btnInst := markup.Data("📥 Instalar", "install_udpcustom")
+	btnUninst := markup.Data("🗑️ Desinstalación Completa", "uninstall_udpcustom")
+	btnBack := markup.Data("🔙 Volver", "menu_protocols")
+
+	markup.Inline(markup.Row(btnInst), markup.Row(btnUninst), markup.Row(btnBack))
+
+	texto := fmt.Sprintf("📡 <b>Gestión de UDP Custom (HTTP Custom)</b>\n\n📊 <b>Estado:</b> %s\n\nEste protocolo es el que utiliza específicamente la aplicación <b>HTTP Custom</b> en su opción 'UDP Custom'.\n\n¿Qué deseas hacer?", status)
 	return c.Edit(texto, markup, tele.ModeHTML)
 }
 

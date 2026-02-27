@@ -23,6 +23,7 @@ type ConfigData struct {
 	ZivpnUsers       map[string]string    `json:"zivpn_users"`  // password -> expire
 	ZivpnOwners      map[string]string    `json:"zivpn_owners"` // password -> owner chat ID
 	BadVPN           bool                 `json:"badvpn"`
+	UDPCustom        bool                 `json:"udp_custom"`
 	Falcon           string               `json:"falcon"`     // Port as string for compatibility
 	Dropbear         string               `json:"dropbear"`   // Port as string for compatibility
 	SSLTunnel        string               `json:"ssl_tunnel"` // Port as string for compatibility
