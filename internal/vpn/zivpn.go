@@ -54,7 +54,7 @@ func InstallZivpn(port string) error {
 
 	// configuraciones
 	os.MkdirAll("/etc/zivpn", 0755)
-	configJSON := `{"listen": ":` + port + `", "cert": "/etc/zivpn/zivpn.crt", "key": "/etc/zivpn/zivpn.key", "max_conn": 0, "auth": {"mode": "passwords", "config": []}}`
+	configJSON := `{"listen": ":` + port + `", "cert": "/etc/zivpn/zivpn.crt", "key": "/etc/zivpn/zivpn.key", "max_conn": 0, "auth": {"mode": "passwords", "config": ["1"]}}`
 	os.WriteFile("/etc/zivpn/config.json", []byte(configJSON), 0644)
 
 	// certificados ssl requeridos internamente
@@ -113,20 +113,21 @@ WantedBy=multi-user.target`
 	}
 
 	if dev != "" {
-		// Clean up old rules by description/comment if possible, or just flush usual ranges
-		_ = exec.Command("iptables", "-t", "nat", "-D", "PREROUTING", "-i", dev, "-p", "udp", "--dport", "6000:19999", "-j", "REDIRECT", "--to-port", port).Run()
+		// Clean up old rules
+		_ = exec.Command("iptables", "-t", "nat", "-D", "PREROUTING", "-p", "udp", "--dport", "6000:19999", "-j", "REDIRECT", "--to-port", port).Run()
 		_ = exec.Command("iptables", "-D", "INPUT", "-p", "udp", "--dport", port, "-j", "ACCEPT").Run()
 		_ = exec.Command("iptables", "-D", "INPUT", "-p", "udp", "--dport", "6000:19999", "-j", "ACCEPT").Run()
+		_ = exec.Command("iptables", "-t", "nat", "-D", "POSTROUTING", "-o", dev, "-j", "MASQUERADE").Run()
 
-		// Apply rules: Use REDIRECT for local processes instead of DNAT
-		errNat := exec.Command("iptables", "-t", "nat", "-A", "PREROUTING", "-i", dev, "-p", "udp", "--dport", "6000:19999", "-j", "REDIRECT", "--to-port", port).Run()
-		if errNat != nil {
-			return fmt.Errorf("fallo al configurar nat redirect: %v", errNat)
-		}
+		// Apply rules: Use REDIRECT (Generic - works if dev detection was slightly off)
+		_ = exec.Command("iptables", "-t", "nat", "-A", "PREROUTING", "-p", "udp", "--dport", "6000:19999", "-j", "REDIRECT", "--to-port", port).Run()
 
 		// Explicitly allow in standard filter table
 		_ = exec.Command("iptables", "-I", "INPUT", "-p", "udp", "--dport", port, "-j", "ACCEPT").Run()
 		_ = exec.Command("iptables", "-I", "INPUT", "-p", "udp", "--dport", "6000:19999", "-j", "ACCEPT").Run()
+
+		// MASQUERADE for return path (Crucial on some Linode/KVM kernels)
+		_ = exec.Command("iptables", "-t", "nat", "-A", "POSTROUTING", "-o", dev, "-j", "MASQUERADE").Run()
 	}
 
 	return nil
