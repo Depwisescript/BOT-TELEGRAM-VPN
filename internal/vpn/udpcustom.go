@@ -92,13 +92,17 @@ WantedBy=multi-user.target`
 	}
 
 	if dev != "" {
-		// Clean range 6000:19999 for this protocol too (aggressive cleaning)
-		exec.Command("bash", "-c", "iptables -t nat -S PREROUTING | grep '6000:19999' | sed 's/-A/-D/' | while read line; do iptables -t nat $line; done").Run()
+		// LIMPIEZA ROBUSTA: Borrar CUALQUIER regla que mencione el rango 13000:19999
+		// Esto evita conflictos con ZiVPN y limpia reglas viejas
+		exec.Command("bash", "-c", "iptables -t nat -S PREROUTING | grep '13000:19999' | sed 's/-A/-D/' | while read line; do iptables -t nat $line; done").Run()
+		exec.Command("bash", "-c", "iptables -S INPUT | grep '13000:19999' | sed 's/-A/-D/' | while read line; do iptables $line; done").Run()
 
-		// Priority Rule
-		_ = exec.Command("iptables", "-t", "nat", "-I", "PREROUTING", "1", "-i", dev, "-p", "udp", "--dport", "6000:19999", "-j", "REDIRECT", "--to-port", port).Run()
+		// APLICAR REGLAS: Usar -I para prioridad máxima
+		_ = exec.Command("iptables", "-t", "nat", "-I", "PREROUTING", "1", "-i", dev, "-p", "udp", "--dport", "13000:19999", "-j", "REDIRECT", "--to-port", port).Run()
+
+		// Permitir en INPUT
 		_ = exec.Command("iptables", "-I", "INPUT", "1", "-p", "udp", "--dport", port, "-j", "ACCEPT").Run()
-		_ = exec.Command("iptables", "-I", "INPUT", "1", "-p", "udp", "--dport", "6000:19999", "-j", "ACCEPT").Run()
+		_ = exec.Command("iptables", "-I", "INPUT", "1", "-p", "udp", "--dport", "13000:19999", "-j", "ACCEPT").Run()
 
 		// Masquerade
 		_ = exec.Command("iptables", "-t", "nat", "-D", "POSTROUTING", "-o", dev, "-j", "MASQUERADE").Run()
@@ -119,7 +123,8 @@ func RemoveUDPCustom() error {
 	devOut, _ := exec.Command("bash", "-c", "ip -4 route ls | grep default | grep -Po '(?<=dev )(\\S+)' | head -1").Output()
 	dev := strings.TrimSpace(string(devOut))
 	if dev != "" {
-		exec.Command("bash", "-c", "iptables -t nat -S PREROUTING | grep '6000:19999' | sed 's/-A/-D/' | while read line; do iptables -t nat $line; done").Run()
+		exec.Command("bash", "-c", "iptables -t nat -S PREROUTING | grep '13000:19999' | sed 's/-A/-D/' | while read line; do iptables -t nat $line; done").Run()
+		exec.Command("bash", "-c", "iptables -S INPUT | grep '13000:19999' | sed 's/-A/-D/' | while read line; do iptables $line; done").Run()
 	}
 
 	exec.Command("systemctl", "daemon-reload").Run()
