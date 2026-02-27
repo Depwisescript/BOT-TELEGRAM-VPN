@@ -34,6 +34,36 @@ func AutoCleanupLoop(b *tele.Bot) {
 						delete(data.ZivpnOwners, pass)
 					}
 				}
+
+				// 3. Limpieza de Usuarios Zombi (12 Horas de inactividad)
+				online, _ := CountOnlineConnections()
+				for user := range data.SSHOwners {
+					// Si está online, actualizar rastro
+					if _, isOnline := online[user]; isOnline {
+						data.SSHLastActive[user] = time.Now().Format(time.RFC3339)
+						continue
+					}
+
+					// Si no está online, ver cuándo fue la última vez
+					lastStr, exists := data.SSHLastActive[user]
+					if !exists {
+						// Si no existe rastro, inicializar con ahora (dar 12h de gracia)
+						data.SSHLastActive[user] = time.Now().Format(time.RFC3339)
+						continue
+					}
+
+					lastTime, err := time.Parse(time.RFC3339, lastStr)
+					if err == nil {
+						if time.Since(lastTime) > 12*time.Hour {
+							// Borrar Zombi
+							DeleteSSHUser(user)
+							delete(data.SSHOwners, user)
+							delete(data.SSHTimeUsers, user)
+							delete(data.SSHLastActive, user)
+						}
+					}
+				}
+
 				return nil
 			})
 
