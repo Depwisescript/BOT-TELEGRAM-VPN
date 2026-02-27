@@ -58,6 +58,9 @@ func StartBot() {
 	b.Handle(&tele.Btn{Unique: "my_stats"}, func(c tele.Context) error {
 		return handleMyStats(c, b)
 	})
+	b.Handle(&tele.Btn{Unique: "menu_broadcast"}, func(c tele.Context) error {
+		return handleMenuBroadcast(c, b)
+	})
 	b.Handle(&tele.Btn{Unique: "menu_eliminar"}, func(c tele.Context) error {
 		return handleMenuEliminar(c, b)
 	})

@@ -62,6 +62,21 @@ func handleMenuAdmins(c tele.Context, b *tele.Bot) error {
 	return c.Edit("⚙️ <b>Ajustes de Administrador</b>\n\nConfigura la privacidad y opciones críticas del bot.", markup, tele.ModeHTML)
 }
 
+func handleMenuBroadcast(c tele.Context, b *tele.Bot) error {
+	chatID := c.Chat().ID
+	if !isAdmin(chatID) {
+		return c.Send("⛔ Solo administradores pueden usar esta función.", tele.ModeHTML)
+	}
+
+	userSteps[chatID] = "awaiting_vpn_broadcast"
+	lastBotMsg[chatID] = c.Message()
+
+	markup := &tele.ReplyMarkup{}
+	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "back_main")))
+
+	return c.Edit("📢 <b>Mensaje Global (Broadcast)</b>\n\n✏️ <i>Escribe el mensaje que deseas enviar a todos los usuarios:</i>\n\nPuedes usar etiquetas HTML básicas como &lt;b&gt;, &lt;i&gt;, etc.", markup, tele.ModeHTML)
+}
+
 // Sub-Menús de Protocolos
 func handleSubMenuSlowDNS(c tele.Context, b *tele.Bot) error {
 	data, _ := db.Load()
@@ -351,6 +366,38 @@ func processVPNSteps(step string, text string, chatID int64, c tele.Context, b *
 	markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_protocols")))
 
 	switch step {
+	case "awaiting_vpn_broadcast":
+		delete(userSteps, chatID)
+		delete(lastBotMsg, chatID)
+
+		data, _ := db.Load()
+		total := len(data.UserHistory)
+		success := 0
+		failed := 0
+
+		// Avisar al admin que empezó
+		b.Edit(lastMsg, fmt.Sprintf("⏳ <i>Emitiendo mensaje a %d usuarios...</i>", total), tele.ModeHTML)
+
+		for _, id := range data.UserHistory {
+			_, err := b.Send(tele.ChatID(id), "📢 <b>MENSAJE GLOBAL DE ADMINISTRACIÓN</b>\n\n"+text, tele.ModeHTML)
+			if err == nil {
+				success++
+			} else {
+				failed++
+			}
+		}
+
+		res := "✅ <b>Emisión Finalizada</b>\n"
+		res += "━━━━━━━━━━━━━━\n"
+		res += fmt.Sprintf("📤 <b>Enviados:</b> <code>%d</code>\n", success)
+		res += fmt.Sprintf("❌ <b>Fallidos:</b> <code>%d</code>\n", failed)
+		res += "━━━━━━━━━━━━━━\n"
+
+		markup := &tele.ReplyMarkup{}
+		markup.Inline(markup.Row(markup.Data("🔙 Volver", "back_main")))
+		b.Edit(lastMsg, res, markup, tele.ModeHTML)
+		return nil
+
 	case "awaiting_vpn_slowdns_domain":
 		tempData[chatID]["domain"] = text
 		userSteps[chatID] = "awaiting_vpn_slowdns_port"
