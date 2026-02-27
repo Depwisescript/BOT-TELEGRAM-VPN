@@ -113,20 +113,24 @@ WantedBy=multi-user.target`
 	}
 
 	if dev != "" {
-		// Clean up old rules
-		_ = exec.Command("iptables", "-t", "nat", "-D", "PREROUTING", "-p", "udp", "--dport", "6000:19999", "-j", "REDIRECT", "--to-port", port).Run()
-		_ = exec.Command("iptables", "-D", "INPUT", "-p", "udp", "--dport", port, "-j", "ACCEPT").Run()
-		_ = exec.Command("iptables", "-D", "INPUT", "-p", "udp", "--dport", "6000:19999", "-j", "ACCEPT").Run()
+		// LIMPIEZA AGRESIVA: Remover cualquier regla en PREROUTING que use el rango 6000:19999
+		// Ejecutamos varias veces para limpiar duplicados o reglas conflictivas (como la del puerto 7300)
+		for i := 0; i < 5; i++ {
+			_ = exec.Command("iptables", "-t", "nat", "-D", "PREROUTING", "-p", "udp", "--dport", "6000:19999", "-j", "DNAT").Run()
+			_ = exec.Command("iptables", "-t", "nat", "-D", "PREROUTING", "-p", "udp", "--dport", "6000:19999", "-j", "REDIRECT").Run()
+			_ = exec.Command("iptables", "-D", "INPUT", "-p", "udp", "--dport", port, "-j", "ACCEPT").Run()
+			_ = exec.Command("iptables", "-D", "INPUT", "-p", "udp", "--dport", "6000:19999", "-j", "ACCEPT").Run()
+		}
+
+		// APLICAR REGLAS: Usar -I (Insertar al inicio) para prioridad absoluta
+		_ = exec.Command("iptables", "-t", "nat", "-I", "PREROUTING", "1", "-i", dev, "-p", "udp", "--dport", "6000:19999", "-j", "REDIRECT", "--to-port", port).Run()
+
+		// Permitir en INPUT expresamente
+		_ = exec.Command("iptables", "-I", "INPUT", "1", "-p", "udp", "--dport", port, "-j", "ACCEPT").Run()
+		_ = exec.Command("iptables", "-I", "INPUT", "1", "-p", "udp", "--dport", "6000:19999", "-j", "ACCEPT").Run()
+
+		// MASQUERADE persistente para retorno (Linode/KVM)
 		_ = exec.Command("iptables", "-t", "nat", "-D", "POSTROUTING", "-o", dev, "-j", "MASQUERADE").Run()
-
-		// Apply rules: Use REDIRECT (Generic - works if dev detection was slightly off)
-		_ = exec.Command("iptables", "-t", "nat", "-A", "PREROUTING", "-p", "udp", "--dport", "6000:19999", "-j", "REDIRECT", "--to-port", port).Run()
-
-		// Explicitly allow in standard filter table
-		_ = exec.Command("iptables", "-I", "INPUT", "-p", "udp", "--dport", port, "-j", "ACCEPT").Run()
-		_ = exec.Command("iptables", "-I", "INPUT", "-p", "udp", "--dport", "6000:19999", "-j", "ACCEPT").Run()
-
-		// MASQUERADE for return path (Crucial on some Linode/KVM kernels)
 		_ = exec.Command("iptables", "-t", "nat", "-A", "POSTROUTING", "-o", dev, "-j", "MASQUERADE").Run()
 	}
 
