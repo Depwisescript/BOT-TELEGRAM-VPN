@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"time"
 )
 
 // InstallBadVPN installs badvpn-udpgw compiling it from the official GitHub repo using CMake.
@@ -71,6 +72,22 @@ WantedBy=multi-user.target`
 	exec.Command("systemctl", "enable", "badvpn.service").Run()
 	if err := exec.Command("systemctl", "restart", "badvpn.service").Run(); err != nil {
 		return fmt.Errorf("fallo reiniciar badvpn.service: %v", err)
+	}
+
+	// 4. Verification Check
+	time.Sleep(1500 * time.Millisecond)
+	if err := exec.Command("systemctl", "is-active", "--quiet", "badvpn.service").Run(); err != nil {
+		// Capture logs on failure
+		logCmd, _ := exec.Command("journalctl", "-u", "badvpn.service", "--no-pager", "-n", "10").Output()
+		logs := string(logCmd)
+		if logs == "" {
+			logs = "No se pudieron obtener logs."
+		}
+
+		_ = exec.Command("systemctl", "stop", "badvpn.service").Run()
+		_ = os.Remove(svcFile)
+		_ = exec.Command("systemctl", "daemon-reload").Run()
+		return fmt.Errorf("badvpn no pudo mantenerse activo en el puerto %s.\n\n📝 <b>LOGS:</b>\n<pre>%s</pre>", port, logs)
 	}
 
 	return nil

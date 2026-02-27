@@ -7,11 +7,12 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 )
 
 type ZivpnConfig struct {
-	Listen  string   `json:"listen"`
-	MaxConn int      `json:"max_conn"`
+	Listen  string `json:"listen"`
+	MaxConn int    `json:"max_conn"`
 	Auth    struct {
 		Mode   string   `json:"mode"`
 		Config []string `json:"config"`
@@ -20,6 +21,11 @@ type ZivpnConfig struct {
 
 // InstallZivpn instals udp-zivpn server version 1.4.9 on a custom port
 func InstallZivpn(port string) error {
+	// 0. Dependencies
+	_ = exec.Command("apt-get", "update").Run()
+	_ = exec.Command("apt-get", "install", "-y", "curl", "openssl", "iptables", "libc6-i386").Run()
+	installLibSSL11() // Reuse logic or call the one in the same package if available
+
 	archRaw := runtime.GOARCH
 	var binURL string
 
@@ -67,11 +73,29 @@ AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW
 [Install]
 WantedBy=multi-user.target`
 
-    // Registro Systemd
+	// Registro Systemd
 	os.WriteFile("/etc/systemd/system/zivpn.service", []byte(svc), 0644)
 	exec.Command("systemctl", "daemon-reload").Run()
-	exec.Command("systemctl", "enable", "zivpn.service").Run()
-	exec.Command("systemctl", "restart", "zivpn.service").Run()
+	_ = exec.Command("systemctl", "enable", "zivpn.service").Run()
+	if err := exec.Command("systemctl", "restart", "zivpn.service").Run(); err != nil {
+		return fmt.Errorf("fallo reiniciar zivpn.service: %v", err)
+	}
+
+	// 4. Verification Check
+	time.Sleep(1500 * time.Millisecond)
+	if err := exec.Command("systemctl", "is-active", "--quiet", "zivpn.service").Run(); err != nil {
+		// Capture logs on failure
+		logCmd, _ := exec.Command("journalctl", "-u", "zivpn.service", "--no-pager", "-n", "10").Output()
+		logs := string(logCmd)
+		if logs == "" {
+			logs = "No se pudieron obtener logs."
+		}
+
+		_ = exec.Command("systemctl", "stop", "zivpn.service").Run()
+		_ = os.Remove("/etc/systemd/system/zivpn.service")
+		_ = exec.Command("systemctl", "daemon-reload").Run()
+		return fmt.Errorf("zivpn no pudo mantenerse activo en el puerto %s.\n\n📝 <b>LOGS:</b>\n<pre>%s</pre>", port, logs)
+	}
 
 	// Enrutamiento de UDP rango externo (6000-19999) hacia (port)
 	devOut, _ := exec.Command("bash", "-c", "ip -4 route ls | grep default | grep -Po '(?<=dev )(\\S+)' | head -1").Output()
@@ -94,7 +118,9 @@ func RemoveZiVPN() error {
 	devOut, _ := exec.Command("bash", "-c", "ip -4 route ls | grep default | grep -Po '(?<=dev )(\\S+)' | head -1").Output()
 	dev := strings.TrimSpace(string(devOut))
 	if dev != "" {
+		// Remove rules (best effort, don't worry if fail if rules didn't exist)
 		exec.Command("iptables", "-t", "nat", "-D", "PREROUTING", "-i", dev, "-p", "udp", "--dport", "6000:19999", "-j", "DNAT", "--to-destination", ":5667").Run()
+		// Try to find the actual port if possible? For now, we rely on the user uninstalling properly.
 	}
 
 	exec.Command("systemctl", "daemon-reload").Run()
