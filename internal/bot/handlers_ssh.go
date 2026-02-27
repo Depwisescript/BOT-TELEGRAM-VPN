@@ -327,6 +327,26 @@ func handleRandomPass(c tele.Context, b *tele.Bot) error {
 	// Generar random de 6 digitos
 	pass := fmt.Sprintf("%06d", rand.Intn(1000000))
 	tempData[chatID]["password"] = pass
+
+	lastMsg := lastBotMsg[chatID]
+
+	// Si NO es SuperAdmin, auto-asignar valores según rol
+	if !isSuperAdminID(chatID) {
+		if isAdmin(chatID) {
+			// Admin: 7 días, 20 conexiones, 30 GB
+			tempData[chatID]["days"] = "7"
+			tempData[chatID]["limit"] = "20"
+			tempData[chatID]["quota"] = "30"
+		} else {
+			// Público: 3 días, 1 conexión, 6 GB
+			tempData[chatID]["days"] = "3"
+			tempData[chatID]["limit"] = "1"
+			tempData[chatID]["quota"] = "6"
+		}
+		return finishSSHCreation(c, b, chatID, lastMsg)
+	}
+
+	// SuperAdmin: flujo completo
 	userSteps[chatID] = "awaiting_ssh_days"
 
 	markupCancel := &tele.ReplyMarkup{}
