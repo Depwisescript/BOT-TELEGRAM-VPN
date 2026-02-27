@@ -161,6 +161,34 @@ func handleTextInputs(c tele.Context, b *tele.Bot) error {
 	return nil
 }
 
+func handleDeleteSelection(c tele.Context, b *tele.Bot) error {
+	user := strings.TrimPrefix(c.Callback().Data, "del_confirm:")
+	chatID := c.Chat().ID
+
+	// Validar permisos
+	userData, _ := db.Load()
+	sa, _ := strconv.ParseInt(superAdmin, 10, 64)
+	if chatID != sa {
+		if ownerID, ok := userData.SSHOwners[user]; !ok || ownerID != fmt.Sprintf("%d", chatID) {
+			return c.Edit("❌ <b>No tienes permisos para borrar este usuario.</b>", tele.ModeHTML)
+		}
+	}
+
+	err := sys.DeleteSSHUser(user)
+	if err != nil {
+		return c.Edit(fmt.Sprintf("❌ <b>Error al borrar:</b> %v", err), tele.ModeHTML)
+	}
+
+	// Limpiar DB
+	delete(userData.SSHOwners, user)
+	db.Save(userData)
+
+	markup := &tele.ReplyMarkup{}
+	markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_eliminar")))
+
+	return c.Edit(fmt.Sprintf("✅ Usuario <b>%s</b> eliminado correctamente.", user), markup, tele.ModeHTML)
+}
+
 func finishSSHCreation(c tele.Context, b *tele.Bot, chatID int64, lastMsg *tele.Message) error {
 	// Limpiar el step
 	delete(userSteps, chatID)

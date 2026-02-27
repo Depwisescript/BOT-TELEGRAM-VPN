@@ -5,34 +5,56 @@ import (
 	"strconv"
 	"strings"
 
-	tele "gopkg.in/telebot.v3"
+	"github.com/Depwisescript/BOT-TELEGRAM-VPN/internal/db"
 	"github.com/Depwisescript/BOT-TELEGRAM-VPN/internal/sys"
+	tele "gopkg.in/telebot.v3"
 )
 
 // Interceptar "Editar SSH" y renovar / cambiar pass
 func handleMenuEditar(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
-	
-	// Preguntar qué usuario editar
-	userSteps[chatID] = "awaiting_edit_user"
-	lastBotMsg[chatID] = c.Message()
-	
+	data, _ := db.Load()
+
 	markup := &tele.ReplyMarkup{}
-	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "cancelar_accion")))
-	
-	return c.Edit("✏️ <b>Editar Usuario SSH</b>\n\n📝 <i>Dime el nombre del usuario a modificar:</i>", markup, tele.ModeHTML)
+	var rows []tele.Row
+
+	// Filtrar usuarios
+	sa, _ := strconv.ParseInt(superAdmin, 10, 64)
+	isSA := chatID == sa
+
+	count := 0
+	for user, ownerID := range data.SSHOwners {
+		if isSA || ownerID == fmt.Sprintf("%d", chatID) {
+			rows = append(rows, markup.Row(markup.Data("👤 "+user, "ed_user:"+user)))
+			count++
+		}
+	}
+
+	rows = append(rows, markup.Row(markup.Data("🔙 Volver", "back_main")))
+	markup.Inline(rows...)
+
+	if count == 0 {
+		return c.Edit("❌ <b>No hay usuarios para editar.</b>", markup, tele.ModeHTML)
+	}
+
+	return c.Edit("✏️ <b>Editar Usuario SSH</b>\n\nSelecciona el usuario que deseas modificar:", markup, tele.ModeHTML)
+}
+
+func handleEditSelection(c tele.Context, b *tele.Bot) error {
+	user := strings.TrimPrefix(c.Callback().Data, "ed_user:")
+	return handleEditMenu(c, user, b, c.Message())
 }
 
 func handleEditMenu(c tele.Context, user string, b *tele.Bot, lastMsg *tele.Message) error {
 	chatID := c.Chat().ID
 	tempData[chatID] = make(map[string]string)
 	tempData[chatID]["username"] = user
-	
+
 	markup := &tele.ReplyMarkup{}
 	btnPass := markup.Data("🔑 Cambiar Contraseña", "edit_pass")
 	btnRenew := markup.Data("⏳ Renovar Días", "edit_renew")
 	btnCancel := markup.Data("❌ Cancelar", "cancelar_accion")
-	
+
 	markup.Inline(
 		markup.Row(btnPass, btnRenew),
 		markup.Row(btnCancel),
@@ -45,33 +67,33 @@ func handleEditMenu(c tele.Context, user string, b *tele.Bot, lastMsg *tele.Mess
 func handleEditPass(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
 	user := tempData[chatID]["username"]
-	
+
 	userSteps[chatID] = "awaiting_edit_pass_val"
 	lastBotMsg[chatID] = c.Message()
-	
+
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "cancelar_accion")))
-	
+
 	return c.Edit(fmt.Sprintf("🔑 <b>Cambiando contraseña de:</b> <code>%s</code>\n\n✏️ <i>Escribe la nueva contraseña:</i>", user), markup, tele.ModeHTML)
 }
 
 func handleEditRenew(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
 	user := tempData[chatID]["username"]
-	
+
 	userSteps[chatID] = "awaiting_edit_renew_val"
 	lastBotMsg[chatID] = c.Message()
-	
+
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "cancelar_accion")))
-	
+
 	return c.Edit(fmt.Sprintf("⏳ <b>Renovando expiración de:</b> <code>%s</code>\n\n📆 <i>¿Cuántos días extra quieres agregarle? (ej: 30)</i>", user), markup, tele.ModeHTML)
 }
 
 // Interceptar las entradas de texto para edicion
 func processEditSteps(step string, text string, chatID int64, c tele.Context, b *tele.Bot, lastMsg *tele.Message) error {
 	user := tempData[chatID]["username"]
-	
+
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("🔙 Volver al Menú", "back_main")))
 
@@ -97,7 +119,7 @@ func processEditSteps(step string, text string, chatID int64, c tele.Context, b 
 			b.Edit(lastMsg, "⚠️ Debes enviar un número de días válido.", markup, tele.ModeHTML)
 			return nil
 		}
-		
+
 		err = sys.RenewSSHUser(user, days)
 		delete(userSteps, chatID)
 		delete(lastBotMsg, chatID)

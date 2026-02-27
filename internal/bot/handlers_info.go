@@ -2,6 +2,7 @@ package bot
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/Depwisescript/BOT-TELEGRAM-VPN/internal/db"
@@ -12,7 +13,7 @@ import (
 func handleInfo(c tele.Context, b *tele.Bot) error {
 	data, _ := db.Load()
 	stats := sys.GetSystemStats()
-	
+
 	info := "🌐 <b>INFORMACIÓN DEL SERVIDOR</b>\n"
 	info += "━━━━━━━━━━━━━━\n"
 	info += fmt.Sprintf("🌍 <b>IP:</b> <code>%s</code>\n", sys.GetPublicIP())
@@ -54,18 +55,20 @@ func handleInfo(c tele.Context, b *tele.Bot) error {
 	}
 	if len(data.ProxyDT.Ports) > 0 {
 		var ports []string
-		for p := range data.ProxyDT.Ports { ports = append(ports, "<code>"+p+"</code>")}
+		for p := range data.ProxyDT.Ports {
+			ports = append(ports, "<code>"+p+"</code>")
+		}
 		info += fmt.Sprintf("🌐 <b>ProxyDT:</b> puertos %s\n", strings.Join(ports, ", "))
 		active = true
 	}
-	
+
 	if !active {
 		info += "<i>Ningún protocolo instalado.</i>\n"
 	}
 	info += "━━━━━━━━━━━━━━\n"
-	
-    info += "\nℹ️ <i>Extrainfo:</i>\n" + data.ExtraInfo
-    
+
+	info += "\nℹ️ <i>Extrainfo:</i>\n" + data.ExtraInfo
+
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("🔙 Volver", "back_main")))
 
@@ -77,7 +80,7 @@ func handleMenuOnline(c tele.Context, b *tele.Bot) error {
 	zivpnOnline := sys.GetZivpnOnline()
 
 	res := "📊 <b>MONITOR DE CONEXIONES</b>\n\n"
-	
+
 	res += "🔒 <b>SSH / Dropbear:</b>\n"
 	if len(sshOnline) > 0 {
 		for _, line := range sshOnline {
@@ -98,14 +101,14 @@ func handleMenuOnline(c tele.Context, b *tele.Bot) error {
 
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("🔙 Volver", "back_main")))
-	
+
 	return c.Edit(res, markup, tele.ModeHTML)
 }
 
 func handleMyStats(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
 	data, _ := db.Load()
-	
+
 	// Buscar que usuarios le pertenecen a este chatID
 	var myUsers []string
 	for user, ownerID := range data.SSHOwners {
@@ -113,7 +116,7 @@ func handleMyStats(c tele.Context, b *tele.Bot) error {
 			myUsers = append(myUsers, user)
 		}
 	}
-	
+
 	if len(myUsers) == 0 {
 		return c.Send("❌ No tienes ningún usuario asignado o creado.", tele.ModeHTML)
 	}
@@ -126,19 +129,36 @@ func handleMyStats(c tele.Context, b *tele.Bot) error {
 
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("🔙 Volver", "back_main")))
-	
+
 	return c.Edit(res, markup, tele.ModeHTML)
 }
 
 // Interceptamos opciones administrativas de borrado
 func handleMenuEliminar(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
-	
-	userSteps[chatID] = "awaiting_delete_user"
-	lastBotMsg[chatID] = c.Message()
-	
+	data, _ := db.Load()
+
 	markup := &tele.ReplyMarkup{}
-	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "cancelar_accion")))
-	
-	return c.Edit("🗑️ <b>Eliminar Usuario SSH</b>\n\n✏️ <i>Dime el nombre del usuario a borrar:</i>", markup, tele.ModeHTML)
+	var rows []tele.Row
+
+	// Filtrar usuarios permitidos para este chatID (o todos si es SuperAdmin)
+	sa, _ := strconv.ParseInt(superAdmin, 10, 64)
+	isSA := chatID == sa
+
+	count := 0
+	for user, ownerID := range data.SSHOwners {
+		if isSA || ownerID == fmt.Sprintf("%d", chatID) {
+			rows = append(rows, markup.Row(markup.Data("👤 "+user, "del_confirm:"+user)))
+			count++
+		}
+	}
+
+	rows = append(rows, markup.Row(markup.Data("🔙 Volver", "back_main")))
+	markup.Inline(rows...)
+
+	if count == 0 {
+		return c.Edit("❌ <b>No hay usuarios para eliminar.</b>", markup, tele.ModeHTML)
+	}
+
+	return c.Edit("🗑️ <b>Eliminar Usuario SSH</b>\n\nSelecciona el usuario que deseas eliminar para siempre:", markup, tele.ModeHTML)
 }

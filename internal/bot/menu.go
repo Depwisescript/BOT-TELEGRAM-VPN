@@ -131,6 +131,10 @@ func StartBot() {
 	b.Handle(&tele.Btn{Unique: "uninstall_proxydt"}, func(c tele.Context) error { return handleUninstallProtocol(c, b, "ProxyDT") })
 	b.Handle(&tele.Btn{Unique: "uninstall_udpcustom"}, func(c tele.Context) error { return handleUninstallUDPCustom(c, b) })
 
+	// Callbacks Dinámicos (One-Tap Selection)
+	b.Handle("\fed_user:", func(c tele.Context) error { return handleEditSelection(c, b) })
+	b.Handle("\fdel_confirm:", func(c tele.Context) error { return handleDeleteSelection(c, b) })
+
 	// Generar Usuario SSH / ZIVPN Handler
 	b.Handle(&tele.Btn{Unique: "crear_ssh"}, func(c tele.Context) error {
 		return handleCrearSSH(c, b)
