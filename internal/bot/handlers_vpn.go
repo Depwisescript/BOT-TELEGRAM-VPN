@@ -229,6 +229,13 @@ func handleInstallSlowDNS(c tele.Context, b *tele.Bot, lastMsg *tele.Message) er
 }
 
 func handleInstallZivpn(c tele.Context, b *tele.Bot, lastMsg *tele.Message) error {
+	data, _ := db.Load()
+	if data.UDPCustom {
+		markup := &tele.ReplyMarkup{}
+		markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_protocols")))
+		return c.Edit("⚠️ <b>Conflicto de Protocolo</b>\n\nNo puedes instalar <b>ZiVPN</b> mientras <b>UDP Custom</b> esté activo. Por favor, desinstala UDP Custom primero.", markup, tele.ModeHTML)
+	}
+
 	chatID := c.Chat().ID
 	delete(userSteps, chatID)
 
@@ -248,7 +255,7 @@ func handleInstallZivpn(c tele.Context, b *tele.Bot, lastMsg *tele.Message) erro
 	res += "━━━━━━━━━━━━━━\n"
 	res += "<i>El servicio udp-custom ya está activo.</i>"
 
-	data, _ := db.Load()
+	data, _ = db.Load()
 	data.Zivpn = true
 	db.Save(data)
 

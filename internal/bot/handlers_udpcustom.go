@@ -9,6 +9,13 @@ import (
 )
 
 func handleInstallUDPCustom(c tele.Context, b *tele.Bot) error {
+	data, _ := db.Load()
+	if data.Zivpn {
+		markup := &tele.ReplyMarkup{}
+		markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_protocols")))
+		return c.Edit("⚠️ <b>Conflicto de Protocolo</b>\n\nNo puedes instalar <b>UDP Custom</b> mientras <b>ZiVPN</b> esté activo. Por favor, desinstala ZiVPN primero.", markup, tele.ModeHTML)
+	}
+
 	c.Edit("⏳ <b>Instalando UDP Custom...</b>\n\nPor favor espera, configurando el servidor para HTTP Custom.", tele.ModeHTML)
 
 	// Usamos puerto por defecto 36712 (común en UDP Custom) o automatizamos
