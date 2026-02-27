@@ -50,7 +50,7 @@ func StartBot() {
 
 	// Opciones del Menú Principal
 	b.Handle(&tele.Btn{Unique: "menu_crear"}, func(c tele.Context) error {
-		return c.Edit(menuCrearText(), menuCrearMarkup())
+		return c.Edit(menuCrearText(), menuCrearMarkup(), tele.ModeHTML)
 	})
 	b.Handle(&tele.Btn{Unique: "menu_info"}, func(c tele.Context) error {
 		return handleInfo(c, b)
