@@ -1,0 +1,5 @@
+depwise-bot
+bot_data.json
+.env
+*.exe
+vendor/
