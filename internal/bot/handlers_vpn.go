@@ -9,6 +9,11 @@ import (
 	tele "gopkg.in/telebot.v3"
 )
 
+func handleProtocolDiag(c tele.Context, b *tele.Bot) error {
+	report := vpn.GetSystemReport()
+	return c.Edit(report, tele.ModeHTML)
+}
+
 // Interceptar "Protocolos" para ver e Iniciar SlowDNS, Zivpn o BadVPN
 func handleMenuProtocols(c tele.Context, b *tele.Bot) error {
 	markup := &tele.ReplyMarkup{}
@@ -28,6 +33,7 @@ func handleMenuProtocols(c tele.Context, b *tele.Bot) error {
 		markup.Row(btnBadVPN, btnUDPCustom),
 		markup.Row(btnProxy, btnFalcon),
 		markup.Row(btnSSL, btnDropbear),
+		markup.Row(markup.Data("🛡️ Diagnóstico de Red", "protocol_diag")),
 		markup.Row(btnCancel),
 	)
 

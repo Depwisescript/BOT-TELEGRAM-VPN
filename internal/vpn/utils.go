@@ -1,9 +1,11 @@
 package vpn
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 )
 
 func installLibSSL11() {
@@ -28,4 +30,27 @@ func installLibSSL11() {
 		_ = exec.Command("dpkg", "-i", "/tmp/libssl1.1.deb").Run()
 		_ = os.Remove("/tmp/libssl1.1.deb")
 	}
+}
+
+// GetSystemReport returns a diagnostic string about network and services
+func GetSystemReport() string {
+	report := "🛡️ <b>REPORTE TÉCNICO DE RED</b>\n\n"
+
+	// 1. IPTables NAT (Prerouting)
+	iptNat, _ := exec.Command("bash", "-c", "iptables -t nat -L PREROUTING -n -v | head -15").Output()
+	report += "🔌 <b>Redirecciones (NAT):</b>\n<pre>" + string(iptNat) + "</pre>\n"
+
+	// 2. Status Servicios
+	svcs := []string{"zivpn.service", "udp-custom.service", "badvpn.service"}
+	report += "⚙️ <b>Estado Servicios:</b>\n"
+	for _, s := range svcs {
+		active, _ := exec.Command("systemctl", "is-active", s).Output()
+		report += fmt.Sprintf("• %s: <code>%s</code>\n", s, strings.TrimSpace(string(active)))
+	}
+
+	// 3. RAM
+	free, _ := exec.Command("free", "-m").Output()
+	report += "\n💾 <b>Memoria RAM (MB):</b>\n<pre>" + string(free) + "</pre>"
+
+	return report
 }

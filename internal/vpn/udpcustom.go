@@ -14,7 +14,7 @@ import (
 func InstallUDPCustom(port string) error {
 	// 0. Dependencies
 	_ = exec.Command("apt-get", "update").Run()
-	_ = exec.Command("apt-get", "install", "-y", "curl", "iptables").Run()
+	_ = exec.Command("apt-get", "install", "-y", "curl", "iptables", "libpam0g").Run()
 
 	// Habilitar IPv4 Forwarding (Requerido para NAT)
 	_ = exec.Command("sysctl", "-w", "net.ipv4.ip_forward=1").Run()
@@ -83,8 +83,8 @@ WantedBy=multi-user.target`
 		return fmt.Errorf("udp-custom no pudo iniciarse. Revisa journalctl -u udp-custom.service")
 	}
 
-	// Routing (similar to ZiVPN)
-	devOut, _ := exec.Command("bash", "-c", "ip -4 route ls | grep default | grep -Po '(?<=dev )(\\S+)' | head -1").Output()
+	// Routing: Detección robusta de interfaz de red
+	devOut, _ := exec.Command("bash", "-c", "ip -4 route show default | awk '{print $5}' | head -1").Output()
 	dev := strings.TrimSpace(string(devOut))
 	if dev == "" {
 		devOut, _ = exec.Command("bash", "-c", "ip link show up | grep -v loopback | grep -v 'lo:' | head -1 | awk '{print $2}' | cut -d':' -f1").Output()
