@@ -11,7 +11,9 @@ import (
 
 func handleProtocolDiag(c tele.Context, b *tele.Bot) error {
 	report := vpn.GetSystemReport()
-	return c.Edit(report, tele.ModeHTML)
+	markup := &tele.ReplyMarkup{}
+	markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_protocols")))
+	return c.Edit(report, markup, tele.ModeHTML)
 }
 
 // Interceptar "Protocolos" para ver e Iniciar SlowDNS, Zivpn o BadVPN
