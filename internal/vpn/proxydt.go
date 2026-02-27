@@ -17,14 +17,21 @@ func InstallProxyDT() error {
 
 	arch := runtime.GOARCH
 
-	mirrors := []string{
-		"https://raw.githubusercontent.com/Depwisescript/PROXY-DT/928bb1af4211b874361bc65c210189a5922ccaa8/DT%201.2.3/x86/proxy",
-		"https://raw.githubusercontent.com/Depwisescript/PROXY-DT/928bb1af4211b874361bc65c210189a5922ccaa8/DT%201.2.3/proxydt",
-	}
-
-	// Prioritize arm64 if architecture matches
+	var mirrors []string
 	if arch == "arm64" || arch == "aarch64" {
-		mirrors = append([]string{"https://raw.githubusercontent.com/Depwisescript/PROXY-DT/928bb1af4211b874361bc65c210189a5922ccaa8/DT%201.2.3/arm64/proxy"}, mirrors...)
+		mirrors = []string{
+			"https://raw.githubusercontent.com/Depwisescript/PROXY-DT/928bb1af4211b874361bc65c210189a5922ccaa8/DT%201.2.3/arm64/proxy",
+		}
+	} else if arch == "amd64" {
+		mirrors = []string{
+			"https://raw.githubusercontent.com/Depwisescript/PROXY-DT/928bb1af4211b874361bc65c210189a5922ccaa8/DT%201.2.3/proxydt",
+			"https://raw.githubusercontent.com/Depwisescript/PROXY-DT/928bb1af4211b874361bc65c210189a5922ccaa8/DT%201.2.3/x86/proxy",
+		}
+	} else {
+		mirrors = []string{
+			"https://raw.githubusercontent.com/Depwisescript/PROXY-DT/928bb1af4211b874361bc65c210189a5922ccaa8/DT%201.2.3/x86/proxy",
+			"https://raw.githubusercontent.com/Depwisescript/PROXY-DT/928bb1af4211b874361bc65c210189a5922ccaa8/DT%201.2.3/proxydt",
+		}
 	}
 
 	os.Remove("/usr/bin/proxydt")
@@ -33,18 +40,27 @@ func InstallProxyDT() error {
 	var lastErr error
 	success := false
 	for _, url := range mirrors {
-		// Use -f to return error code on 404/500
 		cmd := exec.Command("curl", "-L", "-s", "-f", "-o", "/usr/bin/proxydt", url)
 		if err := cmd.Run(); err == nil {
-			success = true
-			break
+			_ = os.Chmod("/usr/bin/proxydt", 0755)
+
+			// Verification test
+			out, _ := exec.Command("/usr/bin/proxydt", "--help").CombinedOutput()
+			// If it runs and shows help or simply doesn't exit with 'Exec format error'
+			if strings.Contains(strings.ToLower(string(out)), "port") || strings.Contains(strings.ToLower(string(out)), "proxydt") {
+				success = true
+				break
+			}
+
+			lastErr = fmt.Errorf("binario descargado pero no ejecutable en esta arquitectura")
+			os.Remove("/usr/bin/proxydt")
 		} else {
 			lastErr = err
 		}
 	}
 
 	if !success {
-		return fmt.Errorf("fallo la descarga de todos los mirrors de ProxyDT: %v", lastErr)
+		return fmt.Errorf("fallo la instalación de ProxyDT: %v", lastErr)
 	}
 
 	if err := os.Chmod("/usr/bin/proxydt", 0755); err != nil {
