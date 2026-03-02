@@ -20,8 +20,11 @@ func EnsureScannerDeps() error {
 
 	for name, pkg := range tools {
 		if findGoBinary(name) == "" {
-			// Install it
-			_ = exec.Command("go", "install", "-v", pkg).Run()
+			// Install it and capture output for debugging if needed
+			out, err := exec.Command("go", "install", "-v", pkg).CombinedOutput()
+			if err != nil {
+				return fmt.Errorf("error instalando %s: %v\nOutput: %s", name, err, string(out))
+			}
 		}
 	}
 
@@ -34,11 +37,24 @@ func findGoBinary(name string) string {
 		return p
 	}
 
-	// 2. Try common VPS Go bin paths
+	// 2. Try to get GOPATH bin
+	if out, err := exec.Command("go", "env", "GOPATH").Output(); err == nil {
+		gopath := strings.TrimSpace(string(out))
+		if gopath != "" {
+			p := fmt.Sprintf("%s/bin/%s", gopath, name)
+			if err := exec.Command("ls", p).Run(); err == nil {
+				return p
+			}
+		}
+	}
+
+	// 3. Try common VPS Go bin paths
 	paths := []string{
 		"/usr/local/bin/" + name,
 		"/root/go/bin/" + name,
 		"/usr/local/go/bin/" + name,
+		"/home/ubuntu/go/bin/" + name,
+		"/home/debian/go/bin/" + name,
 	}
 
 	for _, p := range paths {
