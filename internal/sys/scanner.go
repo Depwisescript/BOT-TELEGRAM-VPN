@@ -19,52 +19,31 @@ func EnsureScannerDeps() error {
 	}
 
 	for name, pkg := range tools {
-		if !isToolAvailable(name) {
-			// Try to find it in common go bin paths
-			binPath := findGoBinary(name)
-			if binPath != "" {
-				// Link it to /usr/local/bin
-				_ = exec.Command("ln", "-sf", binPath, "/usr/local/bin/"+name).Run()
-			} else {
-				// Install it
-				_ = exec.Command("go", "install", "-v", pkg).Run()
-				// Try finding again after install
-				binPath = findGoBinary(name)
-				if binPath != "" {
-					_ = exec.Command("ln", "-sf", binPath, "/usr/local/bin/"+name).Run()
-				}
-			}
+		if findGoBinary(name) == "" {
+			// Install it
+			_ = exec.Command("go", "install", "-v", pkg).Run()
 		}
 	}
 
 	return nil
 }
 
-func isToolAvailable(name string) bool {
-	_, err := exec.LookPath(name)
-	return err == nil
-}
-
 func findGoBinary(name string) string {
-	paths := []string{
-		"/root/go/bin/" + name,
-		"/usr/local/go/bin/" + name,
-		"~/go/bin/" + name,
+	// 1. Try PATH
+	if p, err := exec.LookPath(name); err == nil {
+		return p
 	}
 
-	// Expand ~ manual
+	// 2. Try common VPS Go bin paths
+	paths := []string{
+		"/usr/local/bin/" + name,
+		"/root/go/bin/" + name,
+		"/usr/local/go/bin/" + name,
+	}
+
 	for _, p := range paths {
-		checkPath := p
-		if strings.HasPrefix(p, "~") {
-			// Placeholder for home if needed, but usually bot runs as root or specific user
-			// For simplicity in VPS context, root is standard
-		}
-		if _, err := exec.LookPath(checkPath); err == nil {
-			return checkPath
-		}
-		// Direct check if LookPath fails due to not being in PATH
-		if err := exec.Command("ls", checkPath).Run(); err == nil {
-			return checkPath
+		if err := exec.Command("ls", p).Run(); err == nil {
+			return p
 		}
 	}
 	return ""
@@ -72,11 +51,22 @@ func findGoBinary(name string) string {
 
 // RunScanner runs assetfinder and httpx on a domain
 func RunScanner(domain string) (string, error) {
+	// Resolve paths
+	assetPath := findGoBinary("assetfinder")
+	if assetPath == "" {
+		return "", fmt.Errorf("assetfinder no encontrado. Intenta ejecutar de nuevo para instalarlo.")
+	}
+
+	httpxPath := findGoBinary("httpx")
+	if httpxPath == "" {
+		return "", fmt.Errorf("httpx no encontrado. Intenta ejecutar de nuevo para instalarlo.")
+	}
+
 	// 1. Assetfinder
-	cmdAsset := exec.Command("assetfinder", "--subs-only", domain)
+	cmdAsset := exec.Command(assetPath, "--subs-only", domain)
 	outAsset, err := cmdAsset.Output()
 	if err != nil {
-		return "", fmt.Errorf("error en assetfinder: %v", err)
+		return "", fmt.Errorf("error en assetfinder (%s): %v", assetPath, err)
 	}
 
 	subs := strings.TrimSpace(string(outAsset))
@@ -85,11 +75,11 @@ func RunScanner(domain string) (string, error) {
 	}
 
 	// 2. HTTPX (using stdin)
-	cmdHttpx := exec.Command("httpx", "-silent", "-status-code", "-title", "-tech-detect", "-ip")
+	cmdHttpx := exec.Command(httpxPath, "-silent", "-status-code", "-title", "-tech-detect", "-ip")
 	cmdHttpx.Stdin = strings.NewReader(subs)
 	outHttpx, err := cmdHttpx.Output()
 	if err != nil {
-		return "", fmt.Errorf("error en httpx: %v", err)
+		return "", fmt.Errorf("error en httpx (%s): %v", httpxPath, err)
 	}
 
 	result := string(outHttpx)
