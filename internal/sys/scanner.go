@@ -9,7 +9,19 @@ import (
 // EnsureScannerDeps checks and installs assetfinder and httpx if missing
 func EnsureScannerDeps() error {
 	// Check Go
-	if _, err := exec.LookPath("go"); err != nil {
+	goPath, err := exec.LookPath("go")
+	if err != nil {
+		// Try common paths
+		commonPaths := []string{"/usr/local/go/bin/go", "/usr/bin/go"}
+		for _, p := range commonPaths {
+			if err := exec.Command("ls", p).Run(); err == nil {
+				goPath = p
+				break
+			}
+		}
+	}
+
+	if goPath == "" {
 		return fmt.Errorf("Go no está instalado. Por favor instala Go primero")
 	}
 
@@ -20,8 +32,8 @@ func EnsureScannerDeps() error {
 
 	for name, pkg := range tools {
 		if findGoBinary(name) == "" {
-			// Install it and capture output for debugging if needed
-			out, err := exec.Command("go", "install", "-v", pkg).CombinedOutput()
+			// Install it and capture output for debugging if needed using detected goPath
+			out, err := exec.Command(goPath, "install", "-v", pkg).CombinedOutput()
 			if err != nil {
 				return fmt.Errorf("error instalando %s: %v\nOutput: %s", name, err, string(out))
 			}
@@ -37,8 +49,15 @@ func findGoBinary(name string) string {
 		return p
 	}
 
-	// 2. Try to get GOPATH bin
-	if out, err := exec.Command("go", "env", "GOPATH").Output(); err == nil {
+	// 2. Try to get GOPATH bin manually using a likely go binary location if not in PATH
+	goCmd := "go"
+	if _, err := exec.LookPath("go"); err != nil {
+		if err := exec.Command("ls", "/usr/local/go/bin/go").Run(); err == nil {
+			goCmd = "/usr/local/go/bin/go"
+		}
+	}
+
+	if out, err := exec.Command(goCmd, "env", "GOPATH").Output(); err == nil {
 		gopath := strings.TrimSpace(string(out))
 		if gopath != "" {
 			p := fmt.Sprintf("%s/bin/%s", gopath, name)
