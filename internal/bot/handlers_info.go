@@ -130,10 +130,12 @@ func handleMenuEliminar(c tele.Context, b *tele.Bot) error {
 	sa, _ := strconv.ParseInt(superAdmin, 10, 64)
 	isSA := chatID == sa
 
-	res := "🗑️ <b>ELIMINAR USUARIO SSH</b>\n"
+	res := "🗑️ <b>ELIMINAR CUENTA (SSH/ZiVPN)</b>\n"
 	res += "━━━━━━━━━━━━━━\n"
 
 	count := 0
+	// Listar SSH
+	res += "🔒 <b>Cuentas SSH:</b>\n"
 	for user, ownerID := range data.SSHOwners {
 		if isSA || ownerID == fmt.Sprintf("%d", chatID) {
 			handle := data.SSHHandles[user]
@@ -146,15 +148,29 @@ func handleMenuEliminar(c tele.Context, b *tele.Bot) error {
 		}
 	}
 
+	// Listar ZiVPN
+	res += "\n🛰️ <b>Accesos ZiVPN:</b>\n"
+	for pass, ownerID := range data.ZivpnOwners {
+		if isSA || ownerID == fmt.Sprintf("%d", chatID) {
+			handle := data.ZivpnHandles[pass]
+			if handle != "" {
+				res += fmt.Sprintf("🔑 <code>%s</code> (%s)\n", pass, handle)
+			} else {
+				res += fmt.Sprintf("🔑 <code>%s</code>\n", pass)
+			}
+			count++
+		}
+	}
+
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("🔙 Volver", "back_main")))
 
 	if count == 0 {
-		return c.Edit("❌ <b>No hay usuarios para eliminar.</b>", markup, tele.ModeHTML)
+		return c.Edit("❌ <b>No hay cuentas para eliminar.</b>", markup, tele.ModeHTML)
 	}
 
 	res += "━━━━━━━━━━━━━━\n"
-	res += "✏️ <b>Escribe el nombre del usuario</b> que deseas eliminar exactamente como aparece arriba:"
+	res += "✏️ <b>Escribe el Nombre o Password</b> de la cuenta que deseas eliminar exactamente como aparece arriba:"
 
 	// Cambiar estado a espera de texto
 	userSteps[chatID] = "awaiting_delete_user_selection"

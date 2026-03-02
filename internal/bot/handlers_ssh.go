@@ -3,12 +3,14 @@ package bot
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/Depwisescript/BOT-TELEGRAM-VPN/internal/db"
 	"github.com/Depwisescript/BOT-TELEGRAM-VPN/internal/sys"
+	"github.com/Depwisescript/BOT-TELEGRAM-VPN/internal/vpn"
 	tele "gopkg.in/telebot.v3"
 )
 
@@ -111,33 +113,66 @@ func handleTextInputs(c tele.Context, b *tele.Bot) error {
 		return finishSSHCreation(c, b, chatID, lastMsg)
 
 	case "awaiting_delete_user_selection":
-		user := text
-		userData, _ := db.Load()
-		sa, _ := strconv.ParseInt(superAdmin, 10, 64)
-		if chatID != sa {
-			if ownerID, ok := userData.SSHOwners[user]; !ok || ownerID != fmt.Sprintf("%d", chatID) {
-				b.Edit(lastMsg, "❌ <b>No permitido o no existe.</b>\n✏️ <i>Intenta otro:</i>", markupCancel, tele.ModeHTML)
-				return nil
+		target := text
+		data, _ := db.Load()
+		saID := os.Getenv("SUPER_ADMIN")
+		isSA := fmt.Sprintf("%d", chatID) == saID
+
+		// 1. Verificar si es SSH
+		if ownerID, exists := data.SSHOwners[target]; exists {
+			if !isSA && ownerID != fmt.Sprintf("%d", chatID) {
+				_, err := b.Edit(lastMsg, "❌ <b>No tienes permiso para borrar este SSH.</b>", markupCancel, tele.ModeHTML)
+				return err
 			}
-		} else if _, ok := userData.SSHOwners[user]; !ok {
-			b.Edit(lastMsg, "❌ <b>No existe.</b>\n✏️ <i>Intenta otro:</i>", markupCancel, tele.ModeHTML)
-			return nil
+			b.Edit(lastMsg, fmt.Sprintf("⏳ <b>Borrando SSH:</b> <code>%s</code>...", target), tele.ModeHTML)
+			go func(u string, msg *tele.Message) {
+				err := sys.DeleteSSHUser(u)
+				db.Update(func(d *db.ConfigData) error {
+					delete(d.SSHOwners, u)
+					delete(d.SSHTimeUsers, u)
+					delete(d.SSHLastActive, u)
+					delete(d.SSHHandles, u)
+					return nil
+				})
+				markup := &tele.ReplyMarkup{}
+				markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_eliminar")))
+				if err != nil {
+					b.Edit(msg, fmt.Sprintf("❌ Error al borrar SSH %s: %v", u, err), markup, tele.ModeHTML)
+				} else {
+					b.Edit(msg, fmt.Sprintf("✅ Usuario SSH <b>%s</b> eliminado.", u), markup, tele.ModeHTML)
+				}
+			}(target, lastMsg)
+
+		} else if ownerID, exists := data.ZivpnOwners[target]; exists {
+			// 2. Verificar si es ZiVPN
+			if !isSA && ownerID != fmt.Sprintf("%d", chatID) {
+				_, err := b.Edit(lastMsg, "❌ <b>No tienes permiso para borrar este ZiVPN.</b>", markupCancel, tele.ModeHTML)
+				return err
+			}
+			b.Edit(lastMsg, fmt.Sprintf("⏳ <b>Borrando ZiVPN:</b> <code>%s</code>...", target), tele.ModeHTML)
+			go func(p string, msg *tele.Message) {
+				err := vpn.RemoveZivpnUser(p)
+				db.Update(func(d *db.ConfigData) error {
+					delete(d.ZivpnOwners, p)
+					delete(d.ZivpnUsers, p)
+					delete(d.ZivpnLastActive, p)
+					delete(d.ZivpnHandles, p)
+					return nil
+				})
+				markup := &tele.ReplyMarkup{}
+				markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_eliminar")))
+				if err != nil {
+					b.Edit(msg, fmt.Sprintf("❌ Error al borrar ZiVPN %s: %v", p, err), markup, tele.ModeHTML)
+				} else {
+					b.Edit(msg, fmt.Sprintf("✅ Acceso ZiVPN <b>%s</b> eliminado.", p), markup, tele.ModeHTML)
+				}
+			}(target, lastMsg)
+
+		} else {
+			_, err := b.Edit(lastMsg, "❌ <b>No existe esa cuenta.</b>\n✏️ <i>Intenta escribirla de nuevo exactamente igual:</i>", markupCancel, tele.ModeHTML)
+			return err
 		}
 
-		b.Edit(lastMsg, fmt.Sprintf("⏳ <b>Borrando:</b> <code>%s</code>...", user), tele.ModeHTML)
-		go func(u string, msg *tele.Message) {
-			err := sys.DeleteSSHUser(u)
-			dbNow, _ := db.Load()
-			delete(dbNow.SSHOwners, u)
-			db.Save(dbNow)
-			markup := &tele.ReplyMarkup{}
-			markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_eliminar")))
-			if err != nil {
-				b.Edit(msg, fmt.Sprintf("❌ Error al borrar %s: %v", u, err), markup, tele.ModeHTML)
-			} else {
-				b.Edit(msg, fmt.Sprintf("✅ Usuario <b>%s</b> eliminado.", u), markup, tele.ModeHTML)
-			}
-		}(user, lastMsg)
 		delete(userSteps, chatID)
 		delete(lastBotMsg, chatID)
 		return nil
