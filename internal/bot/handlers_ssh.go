@@ -235,6 +235,8 @@ func handleTextInputs(c tele.Context, b *tele.Bot) error {
 		}
 		return nil
 
+	default:
+		return processVPNSteps(step, text, chatID, c, b, lastMsg)
 	}
 
 	return nil
