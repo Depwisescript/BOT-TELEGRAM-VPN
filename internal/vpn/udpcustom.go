@@ -24,10 +24,9 @@ func InstallUDPCustom(port string) error {
 	var binURL string
 
 	if archRaw == "amd64" {
-		binURL = "https://github.com/http-custom/udp-custom/raw/main/bin/udp-custom-linux-amd64"
+		binURL = "https://github.com/firewallfalcons/FirewallFalcon-Manager/raw/main/udp/udp-custom-linux-amd64"
 	} else if archRaw == "arm64" {
-		// Public community build for ARM64 as official is amd64 only
-		binURL = "https://github.com/powermx/udp-custom-arm64/raw/refs/heads/main/udp-custom-linux-arm64"
+		binURL = "https://github.com/firewallfalcons/FirewallFalcon-Manager/raw/main/udp/udp-custom-linux-arm"
 	} else {
 		return fmt.Errorf("arquitectura no soportada para UDP Custom: %s", archRaw)
 	}
