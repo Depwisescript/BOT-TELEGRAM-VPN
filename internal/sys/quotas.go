@@ -104,9 +104,11 @@ func EnforceDataQuotas() {
 		limit, exists := limits[user]
 		if exists && gbUsed >= limit {
 			// BLOQUEO INSTANTÁNEO
-			// 1. Matar procesos
-			exec.Command("killall", "-u", user, "sshd").Run()
-			exec.Command("killall", "-u", user, "dropbear").Run()
+			// 1. Matar procesos quirúrgicamente
+			pids, _ := GetUserProcesses(user)
+			for _, pid := range pids {
+				exec.Command("kill", "-9", pid).Run()
+			}
 
 			// 2. Bloquear tráfico definitivamente reemplazando ACCEPT por REJECT para este usuario
 			comment := "QUOTA_" + user
@@ -215,7 +217,28 @@ func GetUserMaxLogins(username string) int {
 	return 0
 }
 
-// EnforceConnectionLimits revisa las conexiones activas y mata procesos si exceden el límite
+// GetUserProcesses devuelve una lista de PIDs de procesos SSH/Dropbear de un usuario, ordenados por fecha de inicio (antiguos primero)
+func GetUserProcesses(username string) ([]string, error) {
+	// ps -u user -o pid,cmd --no-headers --sort=start_time
+	out, err := exec.Command("ps", "-u", username, "-o", "pid,cmd", "--no-headers", "--sort=start_time").Output()
+	if err != nil {
+		return nil, err
+	}
+
+	var pids []string
+	lines := strings.Split(string(out), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "sshd:") || strings.Contains(line, "dropbear") {
+			fields := strings.Fields(line)
+			if len(fields) > 0 {
+				pids = append(pids, fields[0])
+			}
+		}
+	}
+	return pids, nil
+}
+
+// EnforceConnectionLimits revisa las conexiones activas y mata procesos quirúrgicamente si exceden el límite
 func EnforceConnectionLimits() {
 	connections, err := CountOnlineConnections()
 	if err != nil {
@@ -223,14 +246,20 @@ func EnforceConnectionLimits() {
 	}
 
 	for user, activeCount := range connections {
-		// Obtener límite del usuario
 		maxLogins := GetUserMaxLogins(user)
 		if maxLogins > 0 && activeCount > maxLogins {
-			// El usuario excedió el límite. Matar todas sus conexiones SSH/Dropbear iterativamente o la más reciente.
-			// Para simplificar y asegurar que se respeta, matamos todos sus procesos SSH/Dropbear.
-			// Cuando intenten reconectar, el límite de PAM actuará, y este script sirve como barredora activa.
-			exec.Command("killall", "-u", user, "sshd").Run()
-			exec.Command("killall", "-u", user, "dropbear").Run()
+			// El usuario excedió el límite.
+			// Obtenemos sus PIDs ordenados por antigüedad (los primeros son los más viejos).
+			pids, err := GetUserProcesses(user)
+			if err != nil || len(pids) <= maxLogins {
+				continue
+			}
+
+			// Matamos los que sobran (los más recientes)
+			// Los PIDs a partir del índice maxLogins son los "extras".
+			for i := maxLogins; i < len(pids); i++ {
+				exec.Command("kill", "-9", pids[i]).Run()
+			}
 		}
 	}
 }
