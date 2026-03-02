@@ -183,6 +183,9 @@ func handleDeleteSelection(c tele.Context, b *tele.Bot) error {
 	user := strings.TrimPrefix(c.Callback().Data, "del_confirm:")
 	chatID := c.Chat().ID
 
+	// ACORDAR inmediatamente para que el spinner de Telegram desaparezca
+	c.Respond(&tele.CallbackResponse{Text: "🗑️ Procesando borrado..."})
+
 	// Validar permisos
 	userData, _ := db.Load()
 	sa, _ := strconv.ParseInt(superAdmin, 10, 64)
@@ -192,14 +195,14 @@ func handleDeleteSelection(c tele.Context, b *tele.Bot) error {
 		}
 	}
 
-	// Informar que está trabajando
-	c.Edit(fmt.Sprintf("⏳ <b>Borrando:</b> <code>%s</code>\n<i>Limpiando sistema y firewall...</i>", user), tele.ModeHTML)
+	// Informar visualmente del inicio
+	c.Edit(fmt.Sprintf("⏳ <b>Borrando:</b> <code>%s</code>\n<i>Limpiando procesos, firewall y sistema...</i>", user), tele.ModeHTML)
 
-	// Ejecutar borrado pesado en segundo plano para no congelar el bot
+	// Ejecutar borrado pesado en segundo plano
 	go func(u string, id int64) {
 		err := sys.DeleteSSHUser(u)
 
-		// Limpiar DB después del borrado exitoso (o fallido, para consistencia)
+		// Limpiar DB
 		dbNow, _ := db.Load()
 		delete(dbNow.SSHOwners, u)
 		db.Save(dbNow)
@@ -210,6 +213,7 @@ func handleDeleteSelection(c tele.Context, b *tele.Bot) error {
 		if err != nil {
 			b.Send(c.Chat(), fmt.Sprintf("❌ <b>Error al borrar %s:</b> %v", u, err), tele.ModeHTML)
 		} else {
+			// Intentar editar el mensaje original de "Borrando" si es posible, si no enviar uno nuevo
 			b.Send(c.Chat(), fmt.Sprintf("✅ Usuario <b>%s</b> eliminado correctamente.", u), markup, tele.ModeHTML)
 		}
 	}(user, chatID)

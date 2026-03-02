@@ -236,7 +236,7 @@ func GetUserMaxLogins(username string) int {
 	return 0
 }
 
-// GetUserProcesses devuelve una lista de PIDs de procesos SSH/Dropbear de un usuario, ordenados por fecha de inicio (antiguos primero)
+// GetUserProcesses devuelve una lista de PIDs de procesos SSH/Dropbear de un usuario (Exportado para sys)
 func GetUserProcesses(username string) ([]string, error) {
 	out, err := exec.Command("ps", "-u", username, "-o", "pid,cmd", "--no-headers", "--sort=start_time").Output()
 	if err != nil {

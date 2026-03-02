@@ -3,6 +3,7 @@ package sys
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"time"
 )
@@ -50,17 +51,39 @@ func CreateSSHUser(username string, password string, days int) error {
 
 // DeleteSSHUser borra el usuario, home y reglas asociadas de iptables
 func DeleteSSHUser(username string) error {
-	// 1. userdel
-	ExecCmdRun("userdel", "-f", "-r", username)
+	// 1. Matar procesos primero (para desocupar userdel)
+	pids, _ := GetUserProcesses(username)
+	for _, pid := range pids {
+		exec.Command("kill", "-9", pid).Run()
+	}
 
-	// 2. Limpiar limits.conf usando sed
-	ExecCmdRun("sed", "-i", fmt.Sprintf("/^%s hard maxlogins/d", username), "/etc/security/limits.conf")
-
-	// 3. Limpiar Iptables (Módulo Quotas robusto)
+	// 2. Limpiar Iptables de inmediato (Módulo Quotas robusto)
 	CleanUserRules(username)
 
+	// 3. Borrar usuario con sed y userdel (con timeout manual para no congelar)
+	// Eliminamos rastro en limits
+	exec.Command("sed", "-i", fmt.Sprintf("/^%s hard maxlogins/d", username), "/etc/security/limits.conf").Run()
+
+	// userdel -f -r (usamos Command directo para evitar bloqueos infinitos si algo sale mal)
+	cmd := exec.Command("userdel", "-f", "-r", username)
+	// Esperar max 10 segundos
+	done := make(chan error, 1)
+	go func() { done <- cmd.Run() }()
+
+	select {
+	case <-time.After(10 * time.Second):
+		if cmd.Process != nil {
+			cmd.Process.Kill()
+		}
+		fmt.Printf("Aviso: userdel para %s tardó demasiado y fue terminado.\n", username)
+	case err := <-done:
+		if err != nil {
+			fmt.Printf("Aviso: error en userdel para %s: %v\n", username, err)
+		}
+	}
+
 	// 4. Archivo limit
-	ExecCmdRun("rm", "-f", fmt.Sprintf("/etc/ssh_limits/%s.limit", username))
+	os.Remove(fmt.Sprintf("/etc/ssh_limits/%s.limit", username))
 
 	return nil
 }
