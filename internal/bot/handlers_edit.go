@@ -51,17 +51,40 @@ func handleEditMenu(c tele.Context, user string, b *tele.Bot, lastMsg *tele.Mess
 	tempData[chatID]["username"] = user
 
 	markup := &tele.ReplyMarkup{}
-	btnPass := markup.Data("🔑 Cambiar Contraseña", "edit_pass")
-	btnRenew := markup.Data("⏳ Renovar Días", "edit_renew")
+	btnPass := markup.Data("🔑 Pass", "edit_pass")
+	btnRenew := markup.Data("⏳ Días", "edit_renew")
+	btnLimit := markup.Data("💻 Límite Conex.", "edit_limit")
+	btnQuota := markup.Data("📊 Cuota GB", "edit_quota")
 	btnCancel := markup.Data("❌ Cancelar", "cancelar_accion")
 
 	markup.Inline(
 		markup.Row(btnPass, btnRenew),
+		markup.Row(btnLimit, btnQuota),
 		markup.Row(btnCancel),
 	)
 
 	b.Edit(lastMsg, fmt.Sprintf("⚙️ <b>Opciones para:</b> <code>%s</code>", user), markup, tele.ModeHTML)
 	return nil
+}
+
+func handleEditLimit(c tele.Context, b *tele.Bot) error {
+	chatID := c.Chat().ID
+	user := tempData[chatID]["username"]
+	userSteps[chatID] = "awaiting_edit_limit_val"
+	lastBotMsg[chatID] = c.Message()
+	markup := &tele.ReplyMarkup{}
+	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "cancelar_accion")))
+	return c.Edit(fmt.Sprintf("💻 <b>Límite de conexiones para:</b> <code>%s</code>\n\n✏️ <i>Escribe el nuevo límite (0 = ilimitado):</i>", user), markup, tele.ModeHTML)
+}
+
+func handleEditQuota(c tele.Context, b *tele.Bot) error {
+	chatID := c.Chat().ID
+	user := tempData[chatID]["username"]
+	userSteps[chatID] = "awaiting_edit_quota_val"
+	lastBotMsg[chatID] = c.Message()
+	markup := &tele.ReplyMarkup{}
+	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "cancelar_accion")))
+	return c.Edit(fmt.Sprintf("📊 <b>Cuota de datos para:</b> <code>%s</code>\n\n✏️ <i>Escribe la nueva cuota en GB (ej: 10.5, 0 = ilimitado):</i>", user), markup, tele.ModeHTML)
 }
 
 func handleEditPass(c tele.Context, b *tele.Bot) error {

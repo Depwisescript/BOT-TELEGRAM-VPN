@@ -11,6 +11,9 @@ import (
 
 // SetConnectionLimit añade una regla a limits.conf para el usuario
 func SetConnectionLimit(username string, maxLogins int) error {
+	// Limpiar previos
+	exec.Command("sed", "-i", fmt.Sprintf("/^%s hard maxlogins/d", username), "/etc/security/limits.conf").Run()
+
 	if maxLogins <= 0 {
 		return nil // Sin límite
 	}
@@ -29,22 +32,28 @@ func SetConnectionLimit(username string, maxLogins int) error {
 
 // SetDataQuota define el límite en GB habilitando la regla de Iptables
 func SetDataQuota(username string, gb float64) error {
+	// 1. Limpiar cualquier regla previa (ACCEPT o REJECT)
+	comment := "QUOTA_" + username
+	blockComment := "BLOCKED_" + username
+
+	exec.Command("iptables", "-D", "OUTPUT", "-m", "owner", "--uid-owner", username, "-m", "comment", "--comment", comment, "-j", "ACCEPT").Run()
+	exec.Command("iptables", "-D", "OUTPUT", "-m", "owner", "--uid-owner", username, "-m", "comment", "--comment", blockComment, "-j", "REJECT").Run()
+	// Borrar genérica por si acaso
+	exec.Command("iptables", "-D", "OUTPUT", "-m", "owner", "--uid-owner", username, "-j", "REJECT").Run()
+
 	if gb <= 0 {
-		return nil // Sin límite
+		// Opcional: borrar archivo de limite
+		os.Remove(fmt.Sprintf("/etc/ssh_limits/%s.limit", username))
+		return nil
 	}
 
-	// Usamos un comentario en la regla de iptables para identificarla fácilmente
-	comment := fmt.Sprintf("QUOTA_%s", username)
-
-	// 1. Iptables (primero borramos por si acaso la vieja, ignoramos error borrado)
-	exec.Command("iptables", "-D", "OUTPUT", "-m", "owner", "--uid-owner", username, "-m", "comment", "--comment", comment, "-j", "ACCEPT").Run()
-
+	// 2. Insertar regla de conteo
 	err := exec.Command("iptables", "-I", "OUTPUT", "-m", "owner", "--uid-owner", username, "-m", "comment", "--comment", comment, "-j", "ACCEPT").Run()
 	if err != nil {
 		return fmt.Errorf("fallo al crear regla iptables: %v", err)
 	}
 
-	// 2. Archivo de límite (para referencia)
+	// 3. Archivo de límite (para referencia)
 	os.MkdirAll("/etc/ssh_limits", 0755)
 	return ioutil.WriteFile(fmt.Sprintf("/etc/ssh_limits/%s.limit", username), []byte(fmt.Sprintf("%f", gb)), 0644)
 }
@@ -93,13 +102,13 @@ func EnforceDataQuotas() {
 		gbUsed := float64(bytesUsed) / 1024 / 1024 / 1024
 
 		// Extraer el nombre de usuario del comentario de la regla
-		// La regla suele contener "/* QUOTA_username */"
 		parts := strings.Split(line, "QUOTA_")
 		if len(parts) < 2 {
 			continue
 		}
-		user := strings.Fields(parts[1])[0]
-		user = strings.Trim(user, "*/ ")
+
+		userRaw := strings.Fields(parts[1])[0]
+		user := strings.Trim(userRaw, "*/ ")
 
 		limit, exists := limits[user]
 		if exists && gbUsed >= limit {
@@ -110,13 +119,13 @@ func EnforceDataQuotas() {
 				exec.Command("kill", "-9", pid).Run()
 			}
 
-			// 2. Bloquear tráfico definitivamente reemplazando ACCEPT por REJECT para este usuario
-			comment := "QUOTA_" + user
-			exec.Command("iptables", "-D", "OUTPUT", "-m", "owner", "--uid-owner", user, "-m", "comment", "--comment", comment, "-j", "ACCEPT").Run()
-			// Insertar REJECT (solo si no existe ya)
+			// 2. Bloquear tráfico definitivamente
+			blockComment := "BLOCKED_" + user
+			exec.Command("iptables", "-D", "OUTPUT", "-m", "owner", "--uid-owner", user, "-m", "comment", "--comment", "QUOTA_"+user, "-j", "ACCEPT").Run()
+
 			check := exec.Command("iptables", "-C", "OUTPUT", "-m", "owner", "--uid-owner", user, "-j", "REJECT")
 			if err := check.Run(); err != nil {
-				exec.Command("iptables", "-I", "OUTPUT", "-m", "owner", "--uid-owner", user, "-j", "REJECT").Run()
+				exec.Command("iptables", "-I", "OUTPUT", "-m", "owner", "--uid-owner", user, "-m", "comment", "--comment", blockComment, "-j", "REJECT").Run()
 			}
 		}
 	}
@@ -124,37 +133,32 @@ func EnforceDataQuotas() {
 
 // ResetDataQuota limpia los contadores del usuario borrando e insertando la regla de Iptables
 func ResetDataQuota(username string) error {
-	exec.Command("iptables", "-D", "OUTPUT", "-m", "owner", "--uid-owner", username, "-j", "ACCEPT").Run()
-	return exec.Command("iptables", "-I", "OUTPUT", "-m", "owner", "--uid-owner", username, "-j", "ACCEPT").Run()
+	limit := 0.0
+	if b, err := ioutil.ReadFile(fmt.Sprintf("/etc/ssh_limits/%s.limit", username)); err == nil {
+		limit, _ = strconv.ParseFloat(strings.TrimSpace(string(b)), 64)
+	}
+	return SetDataQuota(username, limit)
 }
 
 // GetUserConsumption lee `iptables -nvx -L OUTPUT` y retorna los GB gastados y el límite
 func GetUserConsumption(username string) (float64, string, error) {
-	// Límite configurado
 	limitStr := "Infinito"
 	if b, err := ioutil.ReadFile(fmt.Sprintf("/etc/ssh_limits/%s.limit", username)); err == nil {
 		limitStr = strings.TrimSpace(string(b))
 	}
 
-	// UID del usuario
 	outUID, err := exec.Command("id", "-u", username).Output()
 	if err != nil {
 		return 0, "0", fmt.Errorf("el usuario %s no existe", username)
 	}
 	uid := strings.TrimSpace(string(outUID))
 
-	// Iptables
 	cmdOutput, err := exec.Command("iptables", "-nvx", "-L", "OUTPUT").Output()
 	if err != nil {
-		// Tolerante a fallos de IPTables si no existe
 		return 0, limitStr, nil
 	}
 
 	bytesUsed := uint64(0)
-
-	// Parsear respuesta IPTables
-	// Formato típico: "pkts      bytes target     prot opt in     out     source               destination         "
-	// Lleno de reglas. Buscamos owner UID match `uid` o `username`
 	lines := strings.Split(string(cmdOutput), "\n")
 	for _, line := range lines {
 		if strings.Contains(line, "owner") && (strings.Contains(line, uid) || strings.Contains(line, username)) {
@@ -176,7 +180,6 @@ func GetUserConsumption(username string) (float64, string, error) {
 // CountOnlineConnections devuelve el número total de conexiones SSH y Dropbear por usuario
 func CountOnlineConnections() (map[string]int, error) {
 	connections := make(map[string]int)
-
 	out, err := exec.Command("ps", "aux").Output()
 	if err != nil {
 		return connections, err
@@ -184,13 +187,9 @@ func CountOnlineConnections() (map[string]int, error) {
 
 	lines := strings.Split(string(out), "\n")
 	for _, line := range lines {
-		// Ignorar root y grep
 		if strings.Contains(line, "root") || strings.Contains(line, "grep") {
 			continue
 		}
-
-		// OpenSSH: "sshd: username [priv]" o "sshd: username@pts"
-		// Dropbear: "dropbear -R" ejecutado bajo el usuario
 		if strings.Contains(line, "sshd:") || strings.Contains(line, "dropbear") {
 			fields := strings.Fields(line)
 			if len(fields) > 0 {
@@ -199,7 +198,6 @@ func CountOnlineConnections() (map[string]int, error) {
 			}
 		}
 	}
-
 	return connections, nil
 }
 
@@ -207,7 +205,7 @@ func CountOnlineConnections() (map[string]int, error) {
 func GetUserMaxLogins(username string) int {
 	out, err := exec.Command("grep", fmt.Sprintf("^%s hard maxlogins", username), "/etc/security/limits.conf").Output()
 	if err != nil {
-		return 0 // Sin límite aparente o error
+		return 0
 	}
 	fields := strings.Fields(string(out))
 	if len(fields) >= 4 {
@@ -219,7 +217,6 @@ func GetUserMaxLogins(username string) int {
 
 // GetUserProcesses devuelve una lista de PIDs de procesos SSH/Dropbear de un usuario, ordenados por fecha de inicio (antiguos primero)
 func GetUserProcesses(username string) ([]string, error) {
-	// ps -u user -o pid,cmd --no-headers --sort=start_time
 	out, err := exec.Command("ps", "-u", username, "-o", "pid,cmd", "--no-headers", "--sort=start_time").Output()
 	if err != nil {
 		return nil, err
@@ -248,15 +245,10 @@ func EnforceConnectionLimits() {
 	for user, activeCount := range connections {
 		maxLogins := GetUserMaxLogins(user)
 		if maxLogins > 0 && activeCount > maxLogins {
-			// El usuario excedió el límite.
-			// Obtenemos sus PIDs ordenados por antigüedad (los primeros son los más viejos).
 			pids, err := GetUserProcesses(user)
 			if err != nil || len(pids) <= maxLogins {
 				continue
 			}
-
-			// Matamos los que sobran (los más recientes)
-			// Los PIDs a partir del índice maxLogins son los "extras".
 			for i := maxLogins; i < len(pids); i++ {
 				exec.Command("kill", "-9", pids[i]).Run()
 			}

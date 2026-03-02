@@ -126,12 +126,17 @@ func AutoCleanupLoop(b *tele.Bot) {
 				return nil
 			})
 
-			// Nueva Ejecución: EnforceDataQuotas (Optimizado)
-			EnforceDataQuotas()
-
-			// syncIptables() -> pendiente implementación detallada si aplica
+			// Nueva Ejecución: Limpieza cada 60s terminada
 			tick = 0
 		}
+
+		// Ejecución Crítica: Cuotas y Conexiones (Más frecuente)
+		if tick%2 == 0 {
+			EnforceConnectionLimits()
+		}
+
+		// EnforceDataQuotas ahora se ejecuta CADA TICK (7s) para detectar excesos rápido
+		EnforceDataQuotas()
 
 		tick++
 		time.Sleep(7 * time.Second)

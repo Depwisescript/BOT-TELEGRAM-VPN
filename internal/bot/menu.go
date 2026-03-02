@@ -75,6 +75,12 @@ func StartBot() {
 	b.Handle(&tele.Btn{Unique: "edit_renew"}, func(c tele.Context) error {
 		return handleEditRenew(c, b)
 	})
+	b.Handle(&tele.Btn{Unique: "edit_limit"}, func(c tele.Context) error {
+		return handleEditLimit(c, b)
+	})
+	b.Handle(&tele.Btn{Unique: "edit_quota"}, func(c tele.Context) error {
+		return handleEditQuota(c, b)
+	})
 
 	b.Handle(&tele.Btn{Unique: "menu_protocols"}, func(c tele.Context) error {
 		return handleMenuProtocols(c, b)
