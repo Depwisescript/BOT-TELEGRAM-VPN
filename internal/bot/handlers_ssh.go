@@ -192,19 +192,29 @@ func handleDeleteSelection(c tele.Context, b *tele.Bot) error {
 		}
 	}
 
-	err := sys.DeleteSSHUser(user)
-	if err != nil {
-		return c.Edit(fmt.Sprintf("❌ <b>Error al borrar:</b> %v", err), tele.ModeHTML)
-	}
+	// Informar que está trabajando
+	c.Edit(fmt.Sprintf("⏳ <b>Borrando:</b> <code>%s</code>\n<i>Limpiando sistema y firewall...</i>", user), tele.ModeHTML)
 
-	// Limpiar DB
-	delete(userData.SSHOwners, user)
-	db.Save(userData)
+	// Ejecutar borrado pesado en segundo plano para no congelar el bot
+	go func(u string, id int64) {
+		err := sys.DeleteSSHUser(u)
 
-	markup := &tele.ReplyMarkup{}
-	markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_eliminar")))
+		// Limpiar DB después del borrado exitoso (o fallido, para consistencia)
+		dbNow, _ := db.Load()
+		delete(dbNow.SSHOwners, u)
+		db.Save(dbNow)
 
-	return c.Edit(fmt.Sprintf("✅ Usuario <b>%s</b> eliminado correctamente.", user), markup, tele.ModeHTML)
+		markup := &tele.ReplyMarkup{}
+		markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_eliminar")))
+
+		if err != nil {
+			b.Send(c.Chat(), fmt.Sprintf("❌ <b>Error al borrar %s:</b> %v", u, err), tele.ModeHTML)
+		} else {
+			b.Send(c.Chat(), fmt.Sprintf("✅ Usuario <b>%s</b> eliminado correctamente.", u), markup, tele.ModeHTML)
+		}
+	}(user, chatID)
+
+	return nil
 }
 
 func finishSSHCreation(c tele.Context, b *tele.Bot, chatID int64, lastMsg *tele.Message) error {

@@ -56,9 +56,8 @@ func DeleteSSHUser(username string) error {
 	// 2. Limpiar limits.conf usando sed
 	ExecCmdRun("sed", "-i", fmt.Sprintf("/^%s hard maxlogins/d", username), "/etc/security/limits.conf")
 
-	// 3. Limpiar Iptables (Intentar borrar)
-	// Como iptables -D falla si la regla no existe, ignoramos el error aquí
-	ExecCmdRun("iptables", "-D", "OUTPUT", "-m", "owner", "--uid-owner", username, "-j", "ACCEPT")
+	// 3. Limpiar Iptables (Módulo Quotas robusto)
+	CleanUserRules(username)
 
 	// 4. Archivo limit
 	ExecCmdRun("rm", "-f", fmt.Sprintf("/etc/ssh_limits/%s.limit", username))

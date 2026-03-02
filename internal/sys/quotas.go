@@ -40,8 +40,8 @@ func SetDataQuota(username string, gb float64) error {
 	uidStr := strings.TrimSpace(string(outUID))
 	uid, _ := strconv.Atoi(uidStr)
 
-	// 2. Limpiar
-	cleanUserRules(username)
+	// 1. Limpiar cualquier regla previa de forma agresiva
+	CleanUserRules(username)
 
 	if gb <= 0 {
 		os.Remove(fmt.Sprintf("/etc/ssh_limits/%s.limit", username))
@@ -77,8 +77,8 @@ func SetDataQuota(username string, gb float64) error {
 	return ioutil.WriteFile(fmt.Sprintf("/etc/ssh_limits/%s.limit", username), []byte(fmt.Sprintf("%f", gb)), 0644)
 }
 
-// cleanUserRules borra todas las posibles variaciones de reglas de un usuario
-func cleanUserRules(username string) {
+// CleanUserRules borra todas las posibles variaciones de reglas de un usuario (Exportada para sys)
+func CleanUserRules(username string) {
 	outUID, _ := exec.Command("id", "-u", username).Output()
 	uidStr := strings.TrimSpace(string(outUID))
 	mark := ""
@@ -143,7 +143,7 @@ func EnforceDataQuotas() {
 				exec.Command("kill", "-9", pid).Run()
 			}
 			// Re-aplicar limpieza y bloqueo REJECT
-			cleanUserRules(user)
+			CleanUserRules(user)
 			blockComment := "BLOCKED_" + user
 			exec.Command("iptables", "-I", "OUTPUT", "-m", "owner", "--uid-owner", user, "-m", "comment", "--comment", blockComment, "-j", "REJECT").Run()
 			exec.Command("ip6tables", "-I", "OUTPUT", "-m", "owner", "--uid-owner", user, "-m", "comment", "--comment", blockComment, "-j", "REJECT").Run()
