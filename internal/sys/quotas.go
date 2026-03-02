@@ -278,6 +278,25 @@ func GetUserProcesses(username string) ([]string, error) {
 	return pids, nil
 }
 
+// SyncAllIptables sincroniza todas las reglas de iptables con los límites actuales
+func SyncAllIptables() {
+	files, err := ioutil.ReadDir("/etc/ssh_limits")
+	if err != nil {
+		return
+	}
+
+	for _, f := range files {
+		if strings.HasSuffix(f.Name(), ".limit") {
+			user := strings.TrimSuffix(f.Name(), ".limit")
+			if b, err := ioutil.ReadFile("/etc/ssh_limits/" + f.Name()); err == nil {
+				if val, err := strconv.ParseFloat(strings.TrimSpace(string(b)), 64); err == nil {
+					SetDataQuota(user, val)
+				}
+			}
+		}
+	}
+}
+
 // EnforceConnectionLimits revisa las conexiones activas y mata procesos quirúrgicamente si exceden el límite
 func EnforceConnectionLimits() {
 	connections, err := CountOnlineConnections()

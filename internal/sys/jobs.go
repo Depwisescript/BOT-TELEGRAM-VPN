@@ -24,6 +24,9 @@ func CountZivpnActive() bool {
 // AutoCleanupLoop corre en un hilo separado ejecutando la limpieza de Iptables
 // y usuarios excedidos cada cierto tiempo.
 func AutoCleanupLoop(b *tele.Bot) {
+	// Sincronizar reglas al iniciar el bot para limpiar basura de versiones anteriores
+	SyncAllIptables()
+
 	tick := 0
 	for {
 		// Revisar límites de conexión activa cada 14 segundos (2 ticks)
