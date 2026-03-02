@@ -126,6 +126,9 @@ func AutoCleanupLoop(b *tele.Bot) {
 				return nil
 			})
 
+			// Nueva Ejecución: EnforceDataQuotas (Optimizado)
+			EnforceDataQuotas()
+
 			// syncIptables() -> pendiente implementación detallada si aplica
 			tick = 0
 		}
