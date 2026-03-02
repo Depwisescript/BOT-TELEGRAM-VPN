@@ -15,14 +15,23 @@ func InstallFalcon(port string) (string, error) {
 		binName = "falconproxyarm"
 	}
 
-	// URL base (podríamos usar la API de GitHub pero para simplicidad y rapidez usamos una fija conocida o intentamos detectarla)
-	// Basado en el script original:
-	downURL := fmt.Sprintf("https://github.com/firewallfalcons/FirewallFalcon-Manager/releases/latest/download/%s", binName)
+	// Intentar primero /latest/, luego tag explícito como fallback
+	urls := []string{
+		fmt.Sprintf("https://github.com/firewallfalcons/FirewallFalcon-Manager/releases/latest/download/%s", binName),
+		fmt.Sprintf("https://github.com/firewallfalcons/FirewallFalcon-Manager/releases/download/v1.2-RustFast/%s", binName),
+	}
 
-	// 1. Descargar binario
-	cmd := exec.Command("wget", "-q", "-O", "/usr/local/bin/falconproxy", downURL)
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("fallo descarga falconproxy: %v", err)
+	downloaded := false
+	for _, downURL := range urls {
+		cmd := exec.Command("curl", "-L", "-s", "-f", "--connect-timeout", "15", "-o", "/usr/local/bin/falconproxy", downURL)
+		if err := cmd.Run(); err == nil {
+			downloaded = true
+			break
+		}
+	}
+
+	if !downloaded {
+		return "", fmt.Errorf("fallo descarga falconproxy: no se pudo descargar desde ninguna URL")
 	}
 	os.Chmod("/usr/local/bin/falconproxy", 0755)
 
