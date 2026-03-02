@@ -13,20 +13,61 @@ func EnsureScannerDeps() error {
 		return fmt.Errorf("Go no está instalado. Por favor instala Go primero")
 	}
 
-	// Check assetfinder
-	if _, err := exec.LookPath("assetfinder"); err != nil {
-		// Install assetfinder
-		_ = exec.Command("go", "install", "github.com/tomnomnom/assetfinder@latest").Run()
-		// Add to path if not there (usually in /root/go/bin)
+	tools := map[string]string{
+		"assetfinder": "github.com/tomnomnom/assetfinder@latest",
+		"httpx":       "github.com/projectdiscovery/httpx/cmd/httpx@latest",
 	}
 
-	// Check httpx
-	if _, err := exec.LookPath("httpx"); err != nil {
-		// Install httpx
-		_ = exec.Command("go", "install", "-v", "github.com/projectdiscovery/httpx/cmd/httpx@latest").Run()
+	for name, pkg := range tools {
+		if !isToolAvailable(name) {
+			// Try to find it in common go bin paths
+			binPath := findGoBinary(name)
+			if binPath != "" {
+				// Link it to /usr/local/bin
+				_ = exec.Command("ln", "-sf", binPath, "/usr/local/bin/"+name).Run()
+			} else {
+				// Install it
+				_ = exec.Command("go", "install", "-v", pkg).Run()
+				// Try finding again after install
+				binPath = findGoBinary(name)
+				if binPath != "" {
+					_ = exec.Command("ln", "-sf", binPath, "/usr/local/bin/"+name).Run()
+				}
+			}
+		}
 	}
 
 	return nil
+}
+
+func isToolAvailable(name string) bool {
+	_, err := exec.LookPath(name)
+	return err == nil
+}
+
+func findGoBinary(name string) string {
+	paths := []string{
+		"/root/go/bin/" + name,
+		"/usr/local/go/bin/" + name,
+		"~/go/bin/" + name,
+	}
+
+	// Expand ~ manual
+	for _, p := range paths {
+		checkPath := p
+		if strings.HasPrefix(p, "~") {
+			// Placeholder for home if needed, but usually bot runs as root or specific user
+			// For simplicity in VPS context, root is standard
+		}
+		if _, err := exec.LookPath(checkPath); err == nil {
+			return checkPath
+		}
+		// Direct check if LookPath fails due to not being in PATH
+		if err := exec.Command("ls", checkPath).Run(); err == nil {
+			return checkPath
+		}
+	}
+	return ""
 }
 
 // RunScanner runs assetfinder and httpx on a domain
