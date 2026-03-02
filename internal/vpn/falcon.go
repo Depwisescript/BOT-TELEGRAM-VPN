@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 )
 
 // InstallFalcon descarga e instala Falcon Proxy
@@ -15,23 +16,37 @@ func InstallFalcon(port string) (string, error) {
 		binName = "falconproxyarm"
 	}
 
-	// Intentar primero /latest/, luego tag explícito como fallback
+	// URLs a intentar
 	urls := []string{
-		fmt.Sprintf("https://github.com/firewallfalcons/FirewallFalcon-Manager/releases/latest/download/%s", binName),
 		fmt.Sprintf("https://github.com/firewallfalcons/FirewallFalcon-Manager/releases/download/v1.2-RustFast/%s", binName),
+		fmt.Sprintf("https://github.com/firewallfalcons/FirewallFalcon-Manager/releases/latest/download/%s", binName),
 	}
 
+	var lastErr string
 	downloaded := false
+
 	for _, downURL := range urls {
-		cmd := exec.Command("curl", "-L", "-s", "-f", "--connect-timeout", "15", "-o", "/usr/local/bin/falconproxy", downURL)
-		if err := cmd.Run(); err == nil {
+		// Intentar con curl
+		cmd := exec.Command("curl", "-L", "-f", "--connect-timeout", "15", "--max-time", "60", "-o", "/usr/local/bin/falconproxy", downURL)
+		out, err := cmd.CombinedOutput()
+		if err == nil {
 			downloaded = true
 			break
 		}
+		lastErr = fmt.Sprintf("curl: %s | %v", strings.TrimSpace(string(out)), err)
+
+		// Intentar con wget como fallback
+		cmd2 := exec.Command("wget", "--no-check-certificate", "-q", "-O", "/usr/local/bin/falconproxy", downURL)
+		out2, err2 := cmd2.CombinedOutput()
+		if err2 == nil {
+			downloaded = true
+			break
+		}
+		lastErr = fmt.Sprintf("wget: %s | %v", strings.TrimSpace(string(out2)), err2)
 	}
 
 	if !downloaded {
-		return "", fmt.Errorf("fallo descarga falconproxy: no se pudo descargar desde ninguna URL")
+		return "", fmt.Errorf("fallo descarga falconproxy: %s", lastErr)
 	}
 	os.Chmod("/usr/local/bin/falconproxy", 0755)
 
