@@ -2,6 +2,7 @@ package bot
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/Depwisescript/BOT-TELEGRAM-VPN/internal/sys"
@@ -62,7 +63,24 @@ func processScannerSteps(step string, text string, chatID int64, c tele.Context,
 
 		// Limitar el resultado si es muy largo para Telegram (4096 chars)
 		if len(result) > 3500 {
-			result = result[:3500] + "\n\n... (Resultado truncado por longitud)"
+			// Enviar primero un adelanto
+			preview := result[:3000] + "\n\n... (Reporte completo en el archivo adjunto)"
+			header := fmt.Sprintf("✅ <b>Resultados (Previsualización):</b> <code>%s</code>\n", domain)
+			header += "━━━━━━━━━━━━━━\n"
+			b.Edit(lastMsg, header+preview, markup, tele.ModeHTML)
+
+			// Crear archivo temporal para el reporte completo
+			tmpFile := fmt.Sprintf("/tmp/scan_%s.txt", domain)
+			_ = os.WriteFile(tmpFile, []byte(result), 0644)
+			defer os.Remove(tmpFile)
+
+			doc := &tele.Document{
+				File:     tele.FromDisk(tmpFile),
+				FileName: fmt.Sprintf("reporte_escaneo_%s.txt", domain),
+				Caption:  fmt.Sprintf("📄 Reporte completo de escaneo para %s", domain),
+			}
+			b.Send(c.Sender(), doc)
+			return
 		}
 
 		header := fmt.Sprintf("✅ <b>Resultados para:</b> <code>%s</code>\n", domain)
