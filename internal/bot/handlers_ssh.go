@@ -136,7 +136,7 @@ func handleTextInputs(c tele.Context, b *tele.Bot) error {
 		}
 
 		b.Edit(lastMsg, fmt.Sprintf("⏳ <b>Borrando:</b> <code>%s</code>...", user), tele.ModeHTML)
-		go func(u string) {
+		go func(u string, msg *tele.Message) {
 			err := sys.DeleteSSHUser(u)
 			dbNow, _ := db.Load()
 			delete(dbNow.SSHOwners, u)
@@ -144,11 +144,11 @@ func handleTextInputs(c tele.Context, b *tele.Bot) error {
 			markup := &tele.ReplyMarkup{}
 			markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_eliminar")))
 			if err != nil {
-				b.Send(c.Chat(), fmt.Sprintf("❌ Error al borrar %s: %v", u, err), tele.ModeHTML)
+				b.Edit(msg, fmt.Sprintf("❌ Error al borrar %s: %v", u, err), markup, tele.ModeHTML)
 			} else {
-				b.Send(c.Chat(), fmt.Sprintf("✅ Usuario <b>%s</b> eliminado.", u), markup, tele.ModeHTML)
+				b.Edit(msg, fmt.Sprintf("✅ Usuario <b>%s</b> eliminado.", u), markup, tele.ModeHTML)
 			}
-		}(user)
+		}(user, lastMsg)
 		delete(userSteps, chatID)
 		delete(lastBotMsg, chatID)
 		return nil
