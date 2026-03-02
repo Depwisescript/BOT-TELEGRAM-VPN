@@ -9,35 +9,30 @@ import (
 
 // ConfigData representa el archivo bot_data.json
 type ConfigData struct {
-	Admins           map[string]AdminInfo      `json:"admins"`
-	ExtraInfo        string                    `json:"extra_info"`
-	UserHistory      []int64                   `json:"user_history"`
-	PublicAccess     bool                      `json:"public_access"`
-	SSHOwners        map[string]string         `json:"ssh_owners"`
-	SSHTimeUsers     map[string]string         `json:"ssh_time_users"` // user -> expire date
-	CloudflareDomain string                    `json:"cloudflare_domain"`
-	CloudfrontDomain string                    `json:"cloudfront_domain"`
-	ProxyDT          ProxyDTConfig             `json:"proxydt"`
-	SlowDNS          SlowDNSConfig             `json:"slowdns"`
-	Zivpn            bool                      `json:"zivpn"`
-	ZivpnUsers       map[string]string         `json:"zivpn_users"`  // password -> expire
-	ZivpnOwners      map[string]string         `json:"zivpn_owners"` // password -> owner chat ID
-	BadVPN           bool                      `json:"badvpn"`
-	UDPCustom        bool                      `json:"udp_custom"`
-	Falcon           string                    `json:"falcon"`     // Port as string for compatibility
-	Dropbear         string                    `json:"dropbear"`   // Port as string for compatibility
-	SSLTunnel        string                    `json:"ssl_tunnel"` // Port as string for compatibility
-	SSHBanner        string                    `json:"ssh_banner"`
-	SSHLastActive    map[string]string         `json:"ssh_last_active"`   // user -> last active RFC3339
-	ZivpnLastActive  map[string]string         `json:"zivpn_last_active"` // pass -> last active RFC3339
-	SSHHandles       map[string]string         `json:"ssh_handles"`       // user -> @handle
-	ZivpnHandles     map[string]string         `json:"zivpn_handles"`     // pass -> @handle
-	ButtonVisibility map[string]RoleVisibility `json:"button_visibility"` // btnID -> visibility
-}
-
-type RoleVisibility struct {
-	ShowPublic bool `json:"show_public"`
-	ShowAdmin  bool `json:"show_admin"`
+	Admins           map[string]AdminInfo `json:"admins"`
+	ExtraInfo        string               `json:"extra_info"`
+	UserHistory      []int64              `json:"user_history"`
+	PublicAccess     bool                 `json:"public_access"`
+	SSHOwners        map[string]string    `json:"ssh_owners"`
+	SSHTimeUsers     map[string]string    `json:"ssh_time_users"` // user -> expire date
+	CloudflareDomain string               `json:"cloudflare_domain"`
+	CloudfrontDomain string               `json:"cloudfront_domain"`
+	ProxyDT          ProxyDTConfig        `json:"proxydt"`
+	SlowDNS          SlowDNSConfig        `json:"slowdns"`
+	Zivpn            bool                 `json:"zivpn"`
+	ZivpnUsers       map[string]string    `json:"zivpn_users"`  // password -> expire
+	ZivpnOwners      map[string]string    `json:"zivpn_owners"` // password -> owner chat ID
+	BadVPN           bool                 `json:"badvpn"`
+	UDPCustom        bool                 `json:"udp_custom"`
+	Falcon           string               `json:"falcon"`     // Port as string for compatibility
+	Dropbear         string               `json:"dropbear"`   // Port as string for compatibility
+	SSLTunnel        string               `json:"ssl_tunnel"` // Port as string for compatibility
+	SSHBanner        string               `json:"ssh_banner"`
+	SSHLastActive    map[string]string    `json:"ssh_last_active"`   // user -> last active RFC3339
+	ZivpnLastActive  map[string]string    `json:"zivpn_last_active"` // pass -> last active RFC3339
+	SSHHandles       map[string]string    `json:"ssh_handles"`       // user -> @handle
+	ZivpnHandles     map[string]string    `json:"zivpn_handles"`     // pass -> @handle
+	PublicScanner    bool                 `json:"public_scanner"`    // Toggle scanner for public
 }
 
 type AdminInfo struct {
@@ -125,10 +120,6 @@ func loadUnlocked() (*ConfigData, error) {
 	if data.ZivpnHandles == nil {
 		data.ZivpnHandles = make(map[string]string)
 	}
-	if data.ButtonVisibility == nil {
-		data.ButtonVisibility = make(map[string]RoleVisibility)
-	}
-
 	return &data, nil
 }
 
@@ -170,13 +161,6 @@ func saveUnlocked(data *ConfigData) error {
 }
 
 func defaultData() *ConfigData {
-	dv := make(map[string]RoleVisibility)
-	// Default: everything shown to both unless SA manually changes it
-	btns := []string{"menu_crear", "menu_info", "menu_editar", "menu_eliminar", "menu_scanner", "menu_online", "menu_protocols", "menu_admins"}
-	for _, b := range btns {
-		dv[b] = RoleVisibility{ShowPublic: true, ShowAdmin: true}
-	}
-
 	return &ConfigData{
 		Admins:       make(map[string]AdminInfo),
 		ExtraInfo:    "Puertos: 22, 80, 443",
@@ -189,10 +173,10 @@ func defaultData() *ConfigData {
 			Ports: make(map[string]string),
 			Token: "dummy",
 		},
-		SSHLastActive:    make(map[string]string),
-		ZivpnLastActive:  make(map[string]string),
-		SSHHandles:       make(map[string]string),
-		ZivpnHandles:     make(map[string]string),
-		ButtonVisibility: dv,
+		SSHLastActive:   make(map[string]string),
+		ZivpnLastActive: make(map[string]string),
+		SSHHandles:      make(map[string]string),
+		ZivpnHandles:    make(map[string]string),
+		PublicScanner:   true,
 	}
 }

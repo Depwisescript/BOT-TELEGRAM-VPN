@@ -158,8 +158,8 @@ func StartBot() {
 	b.Handle(&tele.Btn{Unique: "reset_history_exec"}, func(c tele.Context) error { return handleResetHistoryExec(c, b) })
 	b.Handle(&tele.Btn{Unique: "reboot_vps_confirm"}, func(c tele.Context) error { return handleServerRebootConfirm(c, b) })
 	b.Handle(&tele.Btn{Unique: "reboot_vps_exec"}, func(c tele.Context) error { return handleServerRebootExec(c, b) })
-	b.Handle(&tele.Btn{Unique: "menu_buttons"}, func(c tele.Context) error { return handleMenuButtons(c, b) })
-	b.Handle("\ftoggle_btn_vis:", func(c tele.Context) error { return handleToggleButtonVisibility(c, b) })
+	b.Handle(&tele.Btn{Unique: "reboot_vps_exec"}, func(c tele.Context) error { return handleServerRebootExec(c, b) })
+	b.Handle(&tele.Btn{Unique: "toggle_public_scanner"}, func(c tele.Context) error { return handleTogglePublicScanner(c, b) })
 
 	// Generar Usuario SSH / ZIVPN Handler
 	b.Handle(&tele.Btn{Unique: "crear_ssh"}, func(c tele.Context) error {
@@ -284,71 +284,32 @@ func buildMainMenuMarkup(chatID int64) *tele.ReplyMarkup {
 	isSA := chatID == sa
 	isAdm := isAdmin(chatID)
 
-	// Helper para verificar visibilidad
-	show := func(btnID string) bool {
-		if isSA {
-			return true
-		}
-		vis, exists := data.ButtonVisibility[btnID]
-		if !exists {
-			return true // Default visible if not set
-		}
-		if isAdm {
-			return vis.ShowAdmin
-		}
-		return vis.ShowPublic
-	}
-
 	// Construir filas dinámicamente
 	var rows []tele.Row
 
 	// Fila 1: Crear e Info
-	row1 := []tele.Btn{}
-	if show("menu_crear") {
-		row1 = append(row1, btnCrear)
-	}
-	if show("menu_info") {
-		row1 = append(row1, btnInfo)
-	}
-	if len(row1) > 0 {
-		rows = append(rows, menu.Row(row1...))
-	}
+	rows = append(rows, menu.Row(btnCrear, btnInfo))
 
-	// Fila 2: Scanner
-	if show("menu_scanner") {
+	// Fila 2: Scanner (Always for Admins, conditional for Public)
+	if isSA || isAdm || data.PublicScanner {
 		rows = append(rows, menu.Row(btnScanner))
 	}
 
 	// Fila 3: Editar y Online
-	row3 := []tele.Btn{}
-	if show("menu_editar") {
-		row3 = append(row3, btnEditar)
-	}
-	if show("menu_online") {
-		row3 = append(row3, btnOnline)
-	}
-	if len(row3) > 0 {
-		rows = append(rows, menu.Row(row3...))
+	if isSA || isAdm {
+		rows = append(rows, menu.Row(btnEditar, btnOnline))
+	} else {
+		rows = append(rows, menu.Row(btnOnline))
 	}
 
 	// Fila 4: Eliminar
-	if show("menu_eliminar") {
-		rows = append(rows, menu.Row(btnDelete))
-	}
+	rows = append(rows, menu.Row(btnDelete))
 
 	// Fila 5: SuperAdmin / Admin Config
-	rowSA := []tele.Btn{}
-	if show("menu_broadcast") {
-		rowSA = append(rowSA, btnGlobal)
-	}
-	if show("menu_protocols") {
-		rowSA = append(rowSA, btnProtocols)
-	}
-	if len(rowSA) > 0 {
-		rows = append(rows, menu.Row(rowSA...))
-	}
-
-	if show("menu_admins") {
+	if isSA {
+		rows = append(rows, menu.Row(btnGlobal, btnProtocols))
+		rows = append(rows, menu.Row(btnSettings))
+	} else if isAdm {
 		rows = append(rows, menu.Row(btnSettings))
 	}
 
