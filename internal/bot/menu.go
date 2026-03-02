@@ -78,9 +78,6 @@ func StartBot() {
 	b.Handle(&tele.Btn{Unique: "edit_limit"}, func(c tele.Context) error {
 		return HandleEditLimit(c, b)
 	})
-	b.Handle(&tele.Btn{Unique: "edit_quota"}, func(c tele.Context) error {
-		return HandleEditQuota(c, b)
-	})
 
 	b.Handle(&tele.Btn{Unique: "menu_protocols"}, func(c tele.Context) error {
 		return handleMenuProtocols(c, b)

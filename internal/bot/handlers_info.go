@@ -73,6 +73,16 @@ func handleInfo(c tele.Context, b *tele.Bot) error {
 	}
 	info += "━━━━━━━━━━━━━━\n"
 
+	// Solo SuperAdmin ve trafico global
+	sa, _ := strconv.ParseInt(superAdmin, 10, 64)
+	if c.Chat().ID == sa {
+		rx, tx := sys.GetGlobalTraffic()
+		info += "📊 <b>TRÁFICO GLOBAL VPS</b>\n"
+		info += fmt.Sprintf("📥 <b>Download:</b> <code>%.2f GB</code>\n", rx)
+		info += fmt.Sprintf("📤 <b>Upload:</b> <code>%.2f GB</code>\n", tx)
+		info += "━━━━━━━━━━━━━━\n"
+	}
+
 	info += "\nℹ️ <i>Extrainfo:</i>\n" + data.ExtraInfo
 
 	markup := &tele.ReplyMarkup{}
@@ -127,10 +137,23 @@ func handleMyStats(c tele.Context, b *tele.Bot) error {
 		return c.Send("❌ No tienes ningún usuario asignado o creado.", tele.ModeHTML)
 	}
 
+	sa, _ := strconv.ParseInt(superAdmin, 10, 64)
+	isSA := chatID == sa
+
 	res := "📊 <b>Tus Usuarios SSH y Consumos</b>\n\n"
+
+	if isSA {
+		rx, tx := sys.GetGlobalTraffic()
+		res = "🌐 <b>RESUMEN GLOBAL VPS</b>\n"
+		res += fmt.Sprintf("📥 <b>Bajada:</b> <code>%.2f GB</code>\n", rx)
+		res += fmt.Sprintf("📤 <b>Subida:</b> <code>%.2f GB</code>\n", tx)
+		res += fmt.Sprintf("👥 <b>Usuarios:</b> %d\n", len(data.SSHOwners))
+		res += "━━━━━━━━━━━━━━\n\n"
+		res += "👤 <b>DETALLE SSH DIRECTO:</b>\n"
+	}
+
 	for _, u := range myUsers {
-		gb, limit, _ := sys.GetUserConsumption(u)
-		res += fmt.Sprintf("👤 <code>%s</code> - <b>%.2f GB</b> / %s GB\n", u, gb, limit)
+		res += fmt.Sprintf("👤 <code>%s</code>\n", u)
 	}
 
 	markup := &tele.ReplyMarkup{}

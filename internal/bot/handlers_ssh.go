@@ -108,17 +108,6 @@ func handleTextInputs(c tele.Context, b *tele.Bot) error {
 			return nil
 		}
 		tempData[chatID]["limit"] = text
-		userSteps[chatID] = "awaiting_ssh_quota"
-		b.Edit(lastMsg, "📊 <i>Cuota en GB (0=infinito):</i>", markupCancel, tele.ModeHTML)
-		return nil
-
-	case "awaiting_ssh_quota":
-		quota, err := strconv.ParseFloat(text, 64)
-		if err != nil || quota < 0 {
-			b.Edit(lastMsg, "⚠️ Valor inválido.\n📊 <i>Cuota GB:</i>", markupCancel, tele.ModeHTML)
-			return nil
-		}
-		tempData[chatID]["quota"] = text
 		return finishSSHCreation(c, b, chatID, lastMsg)
 
 	case "awaiting_delete_user_selection":
@@ -211,19 +200,6 @@ func handleTextInputs(c tele.Context, b *tele.Bot) error {
 		}
 		return nil
 
-	case "awaiting_edit_quota_val":
-		user := tempData[chatID]["edit_target"]
-		quota, _ := strconv.ParseFloat(text, 64)
-		err := sys.SetDataQuota(user, quota)
-		delete(userSteps, chatID)
-		markup := &tele.ReplyMarkup{}
-		markup.Inline(markup.Row(markup.Data("🔙 Menú Editar", "menu_editar")))
-		if err != nil {
-			b.Edit(lastMsg, "❌ Error: "+err.Error(), markup, tele.ModeHTML)
-		} else {
-			b.Edit(lastMsg, fmt.Sprintf("✅ Cuota cambiada para %s a %.2f GB", user, quota), markup, tele.ModeHTML)
-		}
-		return nil
 	}
 
 	return nil
@@ -259,9 +235,8 @@ func showEditUserMenu(c tele.Context, b *tele.Bot, user string) error {
 	btnPass := markup.Data("🔑 Pass", "edit_pass")
 	btnRenew := markup.Data("📅 Renov", "edit_renew")
 	btnLimit := markup.Data("📱 Lim", "edit_limit")
-	btnQuota := markup.Data("📊 GB", "edit_quota")
 	btnBack := markup.Data("🔙 Volver", "menu_editar")
-	markup.Inline(markup.Row(btnPass, btnRenew), markup.Row(btnLimit, btnQuota), markup.Row(btnBack))
+	markup.Inline(markup.Row(btnPass, btnRenew), markup.Row(btnLimit), markup.Row(btnBack))
 	texto := fmt.Sprintf("✏️ <b>EDITAR:</b> <code>%s</code>", user)
 	if c.Callback() != nil {
 		return c.Edit(texto, markup, tele.ModeHTML)
@@ -290,7 +265,6 @@ func finishSSHCreation(c tele.Context, b *tele.Bot, chatID int64, lastMsg *tele.
 	pass := mData["password"]
 	days, _ := strconv.Atoi(mData["days"])
 	limit, _ := strconv.Atoi(mData["limit"])
-	quota, _ := strconv.ParseFloat(mData["quota"], 64)
 
 	b.Edit(lastMsg, "⏳ <i>Creando cuenta en el sistema...</i>", tele.ModeHTML)
 
@@ -303,7 +277,6 @@ func finishSSHCreation(c tele.Context, b *tele.Bot, chatID int64, lastMsg *tele.
 
 	// Aplicar limites
 	sys.SetConnectionLimit(user, limit)
-	sys.SetDataQuota(user, quota)
 
 	// Guardar en DB
 	dbData, _ := db.Load()
@@ -315,10 +288,6 @@ func finishSSHCreation(c tele.Context, b *tele.Bot, chatID int64, lastMsg *tele.
 	if limit == 0 {
 		limitStr = "Ilimitado"
 	}
-	quotaStr := mData["quota"] + " GB"
-	if quota == 0 {
-		quotaStr = "Ilimitado"
-	}
 
 	exito := "✅ <b>NUEVO USUARIO CREADO</b>\n"
 	exito += "━━━━━━━━━━━━━━\n"
@@ -326,7 +295,6 @@ func finishSSHCreation(c tele.Context, b *tele.Bot, chatID int64, lastMsg *tele.
 	exito += fmt.Sprintf("🔑 <b>Pass:</b> <code>%s</code>\n", pass)
 	exito += fmt.Sprintf("⏳ <b>Días:</b> %d\n", days)
 	exito += fmt.Sprintf("📱 <b>Conexiones:</b> %s\n", limitStr)
-	exito += fmt.Sprintf("📊 <b>Datos:</b> %s\n", quotaStr)
 	exito += "━━━━━━━━━━━━━━\n"
 	exito += "<code>IP: " + sys.GetPublicIP() + "</code>\n"
 
@@ -429,14 +397,4 @@ func HandleEditLimit(c tele.Context, b *tele.Bot) error {
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "cancelar_accion")))
 	return c.Edit(fmt.Sprintf("📱 <b>Límite:</b> <code>%s</code>\n✏️ Nuevo límite (0=inf):", user), markup, tele.ModeHTML)
-}
-
-func HandleEditQuota(c tele.Context, b *tele.Bot) error {
-	chatID := c.Chat().ID
-	user := tempData[chatID]["edit_target"]
-	userSteps[chatID] = "awaiting_edit_quota_val"
-	lastBotMsg[chatID] = c.Message()
-	markup := &tele.ReplyMarkup{}
-	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "cancelar_accion")))
-	return c.Edit(fmt.Sprintf("📊 <b>Cuota GB:</b> <code>%s</code>\n✏️ Nueva cuota (0=inf):", user), markup, tele.ModeHTML)
 }
