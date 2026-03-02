@@ -230,13 +230,15 @@ func handleDeepCleanup(c tele.Context, b *tele.Bot) error {
 // Replicamos defaultData si no es exportado, o lo exportamos en db/data.go
 func defaultData() *db.ConfigData {
 	return &db.ConfigData{
-		Admins:       make(map[string]db.AdminInfo),
-		ExtraInfo:    "Servidor Depwise Optimizado",
-		PublicAccess: true,
-		SSHOwners:    make(map[string]string),
-		SSHTimeUsers: make(map[string]string),
-		ZivpnUsers:   make(map[string]string),
-		ZivpnOwners:  make(map[string]string),
+		Admins:          make(map[string]db.AdminInfo),
+		ExtraInfo:       "Servidor Depwise Optimizado",
+		PublicAccess:    true,
+		SSHOwners:       make(map[string]string),
+		SSHTimeUsers:    make(map[string]string),
+		ZivpnUsers:      make(map[string]string),
+		ZivpnOwners:     make(map[string]string),
+		SSHLastActive:   make(map[string]string),
+		ZivpnLastActive: make(map[string]string),
 		ProxyDT: db.ProxyDTConfig{
 			Ports: make(map[string]string),
 			Token: "dummy",
