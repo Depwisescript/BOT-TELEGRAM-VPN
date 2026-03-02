@@ -32,7 +32,6 @@ func handleMenuAdmins(c tele.Context, b *tele.Bot) error {
 	btnCloudfront := markup.Data("🚀 Cloudfront Domain", "edit_cloudfront")
 	btnBanner := markup.Data("📜 Banner SSH", "edit_banner")
 	btnReset := markup.Data("🧹 Limpiar Historial", "reset_history")
-	btnClean := markup.Data("⚠️ Reset DB", "clean_db_confirm")
 	btnReboot := markup.Data("🔄 Reiniciar VPS", "reboot_vps_confirm")
 	btnBack := markup.Data("🔙 Volver", "back_main")
 
@@ -42,8 +41,7 @@ func handleMenuAdmins(c tele.Context, b *tele.Bot) error {
 		markup.Row(btnDel, btnInfo),
 		markup.Row(btnCloudflare, btnCloudfront),
 		markup.Row(btnBanner),
-		markup.Row(btnReset),
-		markup.Row(btnClean, btnReboot),
+		markup.Row(btnReset, btnReboot),
 		markup.Row(btnBack),
 	)
 
@@ -191,26 +189,6 @@ func handleServerRebootExec(c tele.Context, b *tele.Bot) error {
 	return nil
 }
 
-func handleCleanDBConfirm(c tele.Context, b *tele.Bot) error {
-	markup := &tele.ReplyMarkup{}
-	btnYes := markup.Data("🧨 FORMATEAR DB", "clean_db_exec")
-	btnNo := markup.Data("🔙 Cancelar", "menu_admins")
-	markup.Inline(markup.Row(btnYes, btnNo))
-
-	return c.Edit("🧨 <b>BORRADO TOTAL DE DATOS</b>\n\n¿Estás seguro de resetear la base de datos? Se perderán configuraciones de puertos, protocolos y registros (Se mantienen SuperAdmin y Admins).", markup, tele.ModeHTML)
-}
-
-func handleCleanDBExec(c tele.Context, b *tele.Bot) error {
-	db.Update(func(data *db.ConfigData) error {
-		admins := data.Admins
-		// Resetear casi todo
-		*data = *defaultData()
-		data.Admins = admins
-		return nil
-	})
-	return handleMenuAdmins(c, b)
-}
-
 func handleDeepCleanup(c tele.Context, b *tele.Bot) error {
 	c.Edit("🧹 <b>Iniciando limpieza profunda...</b>\nEsto puede tardar unos segundos.", tele.ModeHTML)
 
@@ -224,23 +202,4 @@ func handleDeepCleanup(c tele.Context, b *tele.Bot) error {
 	}
 
 	return c.Edit(report, markup, tele.ModeHTML)
-}
-
-// Replicamos defaultData si no es exportado, o lo exportamos en db/data.go
-func defaultData() *db.ConfigData {
-	return &db.ConfigData{
-		Admins:          make(map[string]db.AdminInfo),
-		ExtraInfo:       "Servidor Depwise Optimizado",
-		PublicAccess:    true,
-		SSHOwners:       make(map[string]string),
-		SSHTimeUsers:    make(map[string]string),
-		ZivpnUsers:      make(map[string]string),
-		ZivpnOwners:     make(map[string]string),
-		SSHLastActive:   make(map[string]string),
-		ZivpnLastActive: make(map[string]string),
-		ProxyDT: db.ProxyDTConfig{
-			Ports: make(map[string]string),
-			Token: "dummy",
-		},
-	}
 }

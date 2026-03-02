@@ -152,8 +152,6 @@ func StartBot() {
 	b.Handle(&tele.Btn{Unique: "reset_history_exec"}, func(c tele.Context) error { return handleResetHistoryExec(c, b) })
 	b.Handle(&tele.Btn{Unique: "reboot_vps_confirm"}, func(c tele.Context) error { return handleServerRebootConfirm(c, b) })
 	b.Handle(&tele.Btn{Unique: "reboot_vps_exec"}, func(c tele.Context) error { return handleServerRebootExec(c, b) })
-	b.Handle(&tele.Btn{Unique: "clean_db_confirm"}, func(c tele.Context) error { return handleCleanDBConfirm(c, b) })
-	b.Handle(&tele.Btn{Unique: "clean_db_exec"}, func(c tele.Context) error { return handleCleanDBExec(c, b) })
 
 	// Generar Usuario SSH / ZIVPN Handler
 	b.Handle(&tele.Btn{Unique: "crear_ssh"}, func(c tele.Context) error {
