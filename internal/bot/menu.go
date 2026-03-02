@@ -114,6 +114,9 @@ func StartBot() {
 	b.Handle(&tele.Btn{Unique: "install_udpcustom"}, func(c tele.Context) error {
 		return handleInstallUDPCustom(c, b)
 	})
+	b.Handle(&tele.Btn{Unique: "install_scanner_deps"}, func(c tele.Context) error {
+		return handleInstallScannerDeps(c, b)
+	})
 
 	// Sub-Menús de Protocolos
 	b.Handle(&tele.Btn{Unique: "submenu_slowdns"}, func(c tele.Context) error { return handleSubMenuSlowDNS(c, b) })

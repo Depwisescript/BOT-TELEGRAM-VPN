@@ -29,6 +29,7 @@ func handleMenuProtocols(c tele.Context, b *tele.Bot) error {
 	btnFalcon := markup.Data("🦅 Falcon", "submenu_falcon")
 	btnSSL := markup.Data("📜 SSL Tunnel", "submenu_ssl")
 	btnDropbear := markup.Data("🐻 Dropbear", "submenu_dropbear")
+	btnScannerDeps := markup.Data("🛠️ Instalar Herramientas Escaner", "install_scanner_deps")
 	btnCancel := markup.Data("🔙 Volver", "back_main")
 
 	markup.Inline(
@@ -37,6 +38,7 @@ func handleMenuProtocols(c tele.Context, b *tele.Bot) error {
 		markup.Row(btnProxy, btnFalcon),
 		markup.Row(btnSSL, btnDropbear),
 		markup.Row(markup.Data("🛡️ Diagnóstico de Red", "protocol_diag")),
+		markup.Row(btnScannerDeps),
 		markup.Row(btnCancel),
 	)
 
@@ -61,6 +63,25 @@ func handleMenuBroadcast(c tele.Context, b *tele.Bot) error {
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "back_main")))
 
 	return c.Edit("📢 <b>Mensaje Global (Broadcast)</b>\n\n✏️ <i>Escribe el mensaje que deseas enviar a todos los usuarios:</i>\n\nPuedes usar etiquetas HTML básicas como &lt;b&gt;, &lt;i&gt;, etc.", markup, tele.ModeHTML)
+}
+
+func handleInstallScannerDeps(c tele.Context, b *tele.Bot) error {
+	chatID := c.Chat().ID
+	if !isSuperAdminID(chatID) {
+		return c.Send("⛔ Solo el SuperAdmin puede realizar esta instalación manual.", tele.ModeHTML)
+	}
+
+	c.Edit("⏳ <b>Instalando Herramientas de Escaneo...</b>\n\n<i>Esto instalará assetfinder y httpx. Por favor espera...</i>", tele.ModeHTML)
+
+	err := sys.EnsureScannerDeps()
+	markup := &tele.ReplyMarkup{}
+	markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_protocols")))
+
+	if err != nil {
+		return c.Edit(fmt.Sprintf("❌ <b>Error en la instalación:</b>\n<pre>%v</pre>", err), markup, tele.ModeHTML)
+	}
+
+	return c.Edit("✅ <b>Herramientas de Escaneo Instaladas y Vinculadas Correctamente.</b>\n\nYa puedes usar el botón 🔍 <b>Escaner</b> del menú principal.", markup, tele.ModeHTML)
 }
 
 // Sub-Menús de Protocolos
