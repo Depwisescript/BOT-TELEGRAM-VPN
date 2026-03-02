@@ -26,6 +26,11 @@ func CountZivpnActive() bool {
 func AutoCleanupLoop(b *tele.Bot) {
 	tick := 0
 	for {
+		// Revisar límites de conexión activa cada 14 segundos (2 ticks)
+		if tick%2 == 0 {
+			EnforceConnectionLimits()
+		}
+
 		// 1. Limpieza de usuarios vencidos de forma periódica
 		if tick >= 9 { // Cada 60-70 segundos aprox
 			db.Update(func(data *db.ConfigData) error {
