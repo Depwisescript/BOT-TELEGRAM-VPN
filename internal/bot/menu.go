@@ -70,16 +70,16 @@ func StartBot() {
 		return handleMenuEditar(c, b)
 	})
 	b.Handle(&tele.Btn{Unique: "edit_pass"}, func(c tele.Context) error {
-		return handleEditPass(c, b)
+		return HandleEditPass(c, b)
 	})
 	b.Handle(&tele.Btn{Unique: "edit_renew"}, func(c tele.Context) error {
-		return handleEditRenew(c, b)
+		return HandleEditRenew(c, b)
 	})
 	b.Handle(&tele.Btn{Unique: "edit_limit"}, func(c tele.Context) error {
-		return handleEditLimit(c, b)
+		return HandleEditLimit(c, b)
 	})
 	b.Handle(&tele.Btn{Unique: "edit_quota"}, func(c tele.Context) error {
-		return handleEditQuota(c, b)
+		return HandleEditQuota(c, b)
 	})
 
 	b.Handle(&tele.Btn{Unique: "menu_protocols"}, func(c tele.Context) error {

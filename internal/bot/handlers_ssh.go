@@ -15,6 +15,7 @@ import (
 // Steps para la conversacion
 var userSteps = make(map[int64]string)
 var tempData = make(map[int64]map[string]string) // Guarda usuario, pass, limit temporalmente
+var lastBotMsg = make(map[int64]*tele.Message)
 
 func handleCrearSSH(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
@@ -37,28 +38,21 @@ func handleCrearSSH(c tele.Context, b *tele.Bot) error {
 	return c.Edit("👤 <b>Crear Nuevo Usuario SSH</b>\n\n✏️ <i>Escribe el nombre de usuario que deseas (ej. pepito):</i>", markup, tele.ModeHTML)
 }
 
-var lastBotMsg = make(map[int64]*tele.Message)
-
 func handleTextInputs(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
 	step, exists := userSteps[chatID]
 	if !exists {
-		// No esta en ninguna creacion, ignorar texto
 		return nil
 	}
 
 	text := strings.TrimSpace(c.Text())
-
-	// Anti-Spam: Borrar el mensaje de texto que el usuario acaba de enviar para mantener limpio el chat
 	b.Delete(c.Message())
 
 	markupCancel := &tele.ReplyMarkup{}
 	markupCancel.Inline(markupCancel.Row(markupCancel.Data("❌ Cancelar", "cancelar_accion")))
 
-	// Recuperar el ultimo mensaje enviado por el bot para editarlo
 	lastMsg, ok := lastBotMsg[chatID]
 	if !ok {
-		// Si no existe, mandar uno nuevo y guardarlo
 		lastMsg, _ = b.Send(c.Chat(), "⏳ Procesando...", tele.ModeHTML)
 		lastBotMsg[chatID] = lastMsg
 	}
@@ -66,40 +60,32 @@ func handleTextInputs(c tele.Context, b *tele.Bot) error {
 	switch step {
 	case "awaiting_ssh_username":
 		if !regexp.MustCompile(`^[a-zA-Z0-9_]+$`).MatchString(text) {
-			b.Edit(lastMsg, "⚠️ El usuario solo puede contener letras, números y guiones bajos (sin espacios).\n✏️ <i>Intenta con otro:</i>", markupCancel, tele.ModeHTML)
+			b.Edit(lastMsg, "⚠️ El usuario solo puede contener letras, números y guiones bajos.\n✏️ <i>Intenta con otro:</i>", markupCancel, tele.ModeHTML)
 			return nil
 		}
 		tempData[chatID]["username"] = text
 		userSteps[chatID] = "awaiting_ssh_password"
-
 		markupPass := &tele.ReplyMarkup{}
 		btnRandom := markupPass.Data("🎲 Generar Aleatoria", "ssh_rnd_pass")
 		btnCancel := markupPass.Data("❌ Cancelar", "cancelar_accion")
 		markupPass.Inline(markupPass.Row(btnRandom), markupPass.Row(btnCancel))
-
-		b.Edit(lastMsg, fmt.Sprintf("✅ Usuario <code>%s</code> guardado.\n\n🔑 <i>Escribe la contraseña O presiona el botón para generarla:</i>", text), markupPass, tele.ModeHTML)
+		b.Edit(lastMsg, fmt.Sprintf("✅ Usuario <code>%s</code> guardado.\n\n🔑 <i>Escribe la contraseña:</i>", text), markupPass, tele.ModeHTML)
 		return nil
 
 	case "awaiting_ssh_password":
 		tempData[chatID]["password"] = text
-
-		// Si NO es SuperAdmin, auto-asignar valores según rol
 		if !isSuperAdminID(chatID) {
 			if isAdmin(chatID) {
-				// Admin: 7 días, 20 conexiones, 30 GB
 				tempData[chatID]["days"] = "7"
 				tempData[chatID]["limit"] = "20"
 				tempData[chatID]["quota"] = "30"
 			} else {
-				// Público: 3 días, 1 conexión, 6 GB
 				tempData[chatID]["days"] = "3"
 				tempData[chatID]["limit"] = "1"
 				tempData[chatID]["quota"] = "6"
 			}
 			return finishSSHCreation(c, b, chatID, lastMsg)
 		}
-
-		// SuperAdmin: flujo completo, preguntar días
 		userSteps[chatID] = "awaiting_ssh_days"
 		b.Edit(lastMsg, "⏳ <i>¿Cuántos días de duración (ej: 30)?</i>", markupCancel, tele.ModeHTML)
 		return nil
@@ -107,125 +93,198 @@ func handleTextInputs(c tele.Context, b *tele.Bot) error {
 	case "awaiting_ssh_days":
 		days, err := strconv.Atoi(text)
 		if err != nil || days <= 0 {
-			b.Edit(lastMsg, "⚠️ Por favor envía un número válido mayor a 0.\n⏳ <i>¿Cuántos días de duración (ej: 30)?</i>", markupCancel, tele.ModeHTML)
+			b.Edit(lastMsg, "⚠️ Valor inválido.\n⏳ <i>Días:</i>", markupCancel, tele.ModeHTML)
 			return nil
 		}
 		tempData[chatID]["days"] = text
 		userSteps[chatID] = "awaiting_ssh_limit"
-		b.Edit(lastMsg, "💻 <i>Límite de conexiones simultáneas (ej: 1 o 2). Envía 0 para ilimitado:</i>", markupCancel, tele.ModeHTML)
+		b.Edit(lastMsg, "💻 <i>Límite de conexiones (0=infinito):</i>", markupCancel, tele.ModeHTML)
 		return nil
 
 	case "awaiting_ssh_limit":
 		limit, err := strconv.Atoi(text)
 		if err != nil || limit < 0 {
-			b.Edit(lastMsg, "⚠️ Envía un número válido (0 = ilimitadas).\n💻 <i>Límite de conexiones simultáneas:</i>", markupCancel, tele.ModeHTML)
+			b.Edit(lastMsg, "⚠️ Valor inválido.\n💻 <i>Límite:</i>", markupCancel, tele.ModeHTML)
 			return nil
 		}
 		tempData[chatID]["limit"] = text
 		userSteps[chatID] = "awaiting_ssh_quota"
-		b.Edit(lastMsg, "📊 <i>Límite de datos en GB (ej: 10 o 5.5). Envía 0 para ilimitado:</i>", markupCancel, tele.ModeHTML)
+		b.Edit(lastMsg, "📊 <i>Cuota en GB (0=infinito):</i>", markupCancel, tele.ModeHTML)
 		return nil
 
 	case "awaiting_ssh_quota":
 		quota, err := strconv.ParseFloat(text, 64)
 		if err != nil || quota < 0 {
-			b.Edit(lastMsg, "⚠️ Envía un número de GB válido (0 = Ilimitado).\n📊 <i>Límite de datos en GB:</i>", markupCancel, tele.ModeHTML)
+			b.Edit(lastMsg, "⚠️ Valor inválido.\n📊 <i>Cuota GB:</i>", markupCancel, tele.ModeHTML)
 			return nil
 		}
 		tempData[chatID]["quota"] = text
-
 		return finishSSHCreation(c, b, chatID, lastMsg)
-	case "awaiting_zivpn_pass", "awaiting_zivpn_days":
-		return processZivpnSteps(step, text, chatID, c, b, lastMsg)
 
-	case "awaiting_delete_user":
+	case "awaiting_delete_user_selection":
+		user := text
 		userData, _ := db.Load()
-
-		// Validar permisos
 		sa, _ := strconv.ParseInt(superAdmin, 10, 64)
 		if chatID != sa {
-			if ownerID, ok := userData.SSHOwners[text]; !ok || ownerID != fmt.Sprintf("%d", chatID) {
-				b.Edit(lastMsg, "❌ No tienes permisos para borrar este usuario o no existe.\n\n✏️ <i>Intenta con otro:</i>", markupCancel, tele.ModeHTML)
+			if ownerID, ok := userData.SSHOwners[user]; !ok || ownerID != fmt.Sprintf("%d", chatID) {
+				b.Edit(lastMsg, "❌ <b>No permitido o no existe.</b>\n✏️ <i>Intenta otro:</i>", markupCancel, tele.ModeHTML)
 				return nil
 			}
-		}
-
-		err := sys.DeleteSSHUser(text)
-		if err != nil {
-			b.Edit(lastMsg, fmt.Sprintf("❌ Error al borrar: %v\n\n✏️ <i>Intenta con otro:</i>", err), markupCancel, tele.ModeHTML)
+		} else if _, ok := userData.SSHOwners[user]; !ok {
+			b.Edit(lastMsg, "❌ <b>No existe.</b>\n✏️ <i>Intenta otro:</i>", markupCancel, tele.ModeHTML)
 			return nil
 		}
 
-		// Limpiar DB e Interfaz
-		delete(userData.SSHOwners, text)
-		db.Save(userData)
-
+		b.Edit(lastMsg, fmt.Sprintf("⏳ <b>Borrando:</b> <code>%s</code>...", user), tele.ModeHTML)
+		go func(u string) {
+			err := sys.DeleteSSHUser(u)
+			dbNow, _ := db.Load()
+			delete(dbNow.SSHOwners, u)
+			db.Save(dbNow)
+			markup := &tele.ReplyMarkup{}
+			markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_eliminar")))
+			if err != nil {
+				b.Send(c.Chat(), fmt.Sprintf("❌ Error al borrar %s: %v", u, err), tele.ModeHTML)
+			} else {
+				b.Send(c.Chat(), fmt.Sprintf("✅ Usuario <b>%s</b> eliminado.", u), markup, tele.ModeHTML)
+			}
+		}(user)
 		delete(userSteps, chatID)
 		delete(lastBotMsg, chatID)
-
-		markup := &tele.ReplyMarkup{}
-		markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_eliminar")))
-		b.Edit(lastMsg, fmt.Sprintf("✅ Usuario <b>%s</b> eliminado correctamente del servidor.", text), markup, tele.ModeHTML)
 		return nil
 
-	default:
-		if strings.HasPrefix(step, "awaiting_edit_") {
-			return processEditSteps(step, text, chatID, c, b, lastMsg)
-		} else if strings.HasPrefix(step, "awaiting_vpn_") {
-			return processVPNSteps(step, text, chatID, c, b, lastMsg)
+	case "awaiting_edit_user_selection":
+		user := text
+		userData, _ := db.Load()
+		sa, _ := strconv.ParseInt(superAdmin, 10, 64)
+		if chatID != sa {
+			if ownerID, ok := userData.SSHOwners[user]; !ok || ownerID != fmt.Sprintf("%d", chatID) {
+				b.Edit(lastMsg, "❌ <b>No permitido o no existe.</b>\n✏️ <i>Intenta otro:</i>", markupCancel, tele.ModeHTML)
+				return nil
+			}
+		} else if _, ok := userData.SSHOwners[user]; !ok {
+			b.Edit(lastMsg, "❌ <b>No existe.</b>\n✏️ <i>Intenta otro:</i>", markupCancel, tele.ModeHTML)
+			return nil
 		}
+		tempData[chatID]["edit_target"] = user
+		delete(userSteps, chatID)
+		return showEditUserMenu(c, b, user)
+
+	case "awaiting_edit_pass_val":
+		user := tempData[chatID]["edit_target"]
+		err := sys.UpdateSSHUserPassword(user, text)
+		delete(userSteps, chatID)
+		markup := &tele.ReplyMarkup{}
+		markup.Inline(markup.Row(markup.Data("🔙 Menú Editar", "menu_editar")))
+		if err != nil {
+			b.Edit(lastMsg, "❌ Error: "+err.Error(), markup, tele.ModeHTML)
+		} else {
+			b.Edit(lastMsg, "✅ Pass cambiado para "+user, markup, tele.ModeHTML)
+		}
+		return nil
+
+	case "awaiting_edit_renew_val":
+		user := tempData[chatID]["edit_target"]
+		days, _ := strconv.Atoi(text)
+		err := sys.RenewSSHUser(user, days)
+		delete(userSteps, chatID)
+		markup := &tele.ReplyMarkup{}
+		markup.Inline(markup.Row(markup.Data("🔙 Menú Editar", "menu_editar")))
+		if err != nil {
+			b.Edit(lastMsg, "❌ Error: "+err.Error(), markup, tele.ModeHTML)
+		} else {
+			b.Edit(lastMsg, fmt.Sprintf("✅ Renovado %d días para %s", days, user), markup, tele.ModeHTML)
+		}
+		return nil
+
+	case "awaiting_edit_limit_val":
+		user := tempData[chatID]["edit_target"]
+		limit, _ := strconv.Atoi(text)
+		err := sys.SetConnectionLimit(user, limit)
+		delete(userSteps, chatID)
+		markup := &tele.ReplyMarkup{}
+		markup.Inline(markup.Row(markup.Data("🔙 Menú Editar", "menu_editar")))
+		if err != nil {
+			b.Edit(lastMsg, "❌ Error: "+err.Error(), markup, tele.ModeHTML)
+		} else {
+			b.Edit(lastMsg, fmt.Sprintf("✅ Límite cambiado para %s", user), markup, tele.ModeHTML)
+		}
+		return nil
+
+	case "awaiting_edit_quota_val":
+		user := tempData[chatID]["edit_target"]
+		quota, _ := strconv.ParseFloat(text, 64)
+		err := sys.SetDataQuota(user, quota)
+		delete(userSteps, chatID)
+		markup := &tele.ReplyMarkup{}
+		markup.Inline(markup.Row(markup.Data("🔙 Menú Editar", "menu_editar")))
+		if err != nil {
+			b.Edit(lastMsg, "❌ Error: "+err.Error(), markup, tele.ModeHTML)
+		} else {
+			b.Edit(lastMsg, fmt.Sprintf("✅ Cuota cambiada para %s a %.2f GB", user, quota), markup, tele.ModeHTML)
+		}
+		return nil
 	}
 
 	return nil
+}
+
+func handleMenuEditar(c tele.Context, b *tele.Bot) error {
+	chatID := c.Chat().ID
+	data, _ := db.Load()
+	sa, _ := strconv.ParseInt(superAdmin, 10, 64)
+	isSA := chatID == sa
+	res := "✏️ <b>EDITAR USUARIO</b>\n━━━━━━━━━━━━━━\n"
+	count := 0
+	for user, ownerID := range data.SSHOwners {
+		if isSA || ownerID == fmt.Sprintf("%d", chatID) {
+			res += "👤 <code>" + user + "</code>\n"
+			count++
+		}
+	}
+	markup := &tele.ReplyMarkup{}
+	markup.Inline(markup.Row(markup.Data("🔙 Volver", "back_main")))
+	if count == 0 {
+		return c.Edit("❌ No hay usuarios.", markup, tele.ModeHTML)
+	}
+	res += "━━━━━━━━━━━━━━\n✏️ Escribe el nombre del usuario:"
+	userSteps[chatID] = "awaiting_edit_user_selection"
+	tempData[chatID] = make(map[string]string)
+	lastBotMsg[chatID] = c.Message()
+	return c.Edit(res, markup, tele.ModeHTML)
+}
+
+func showEditUserMenu(c tele.Context, b *tele.Bot, user string) error {
+	markup := &tele.ReplyMarkup{}
+	btnPass := markup.Data("🔑 Pass", "edit_pass")
+	btnRenew := markup.Data("📅 Renov", "edit_renew")
+	btnLimit := markup.Data("📱 Lim", "edit_limit")
+	btnQuota := markup.Data("📊 GB", "edit_quota")
+	btnBack := markup.Data("🔙 Volver", "menu_editar")
+	markup.Inline(markup.Row(btnPass, btnRenew), markup.Row(btnLimit, btnQuota), markup.Row(btnBack))
+	texto := fmt.Sprintf("✏️ <b>EDITAR:</b> <code>%s</code>", user)
+	if c.Callback() != nil {
+		return c.Edit(texto, markup, tele.ModeHTML)
+	}
+	lastMsg := lastBotMsg[c.Chat().ID]
+	if lastMsg != nil {
+		b.Edit(lastMsg, texto, markup, tele.ModeHTML)
+		return nil
+	}
+	return c.Send(texto, markup, tele.ModeHTML)
+}
+
+func handleEditSelection(c tele.Context, b *tele.Bot) error {
+	return handleMenuEditar(c, b)
 }
 
 func handleDeleteSelection(c tele.Context, b *tele.Bot) error {
-	user := strings.TrimPrefix(c.Callback().Data, "del_confirm:")
-	chatID := c.Chat().ID
-
-	// ACORDAR inmediatamente para que el spinner de Telegram desaparezca
-	c.Respond(&tele.CallbackResponse{Text: "🗑️ Procesando borrado..."})
-
-	// Validar permisos
-	userData, _ := db.Load()
-	sa, _ := strconv.ParseInt(superAdmin, 10, 64)
-	if chatID != sa {
-		if ownerID, ok := userData.SSHOwners[user]; !ok || ownerID != fmt.Sprintf("%d", chatID) {
-			return c.Edit("❌ <b>No tienes permisos para borrar este usuario.</b>", tele.ModeHTML)
-		}
-	}
-
-	// Informar visualmente del inicio
-	c.Edit(fmt.Sprintf("⏳ <b>Borrando:</b> <code>%s</code>\n<i>Limpiando procesos, firewall y sistema...</i>", user), tele.ModeHTML)
-
-	// Ejecutar borrado pesado en segundo plano
-	go func(u string, id int64) {
-		err := sys.DeleteSSHUser(u)
-
-		// Limpiar DB
-		dbNow, _ := db.Load()
-		delete(dbNow.SSHOwners, u)
-		db.Save(dbNow)
-
-		markup := &tele.ReplyMarkup{}
-		markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_eliminar")))
-
-		if err != nil {
-			b.Send(c.Chat(), fmt.Sprintf("❌ <b>Error al borrar %s:</b> %v", u, err), tele.ModeHTML)
-		} else {
-			// Intentar editar el mensaje original de "Borrando" si es posible, si no enviar uno nuevo
-			b.Send(c.Chat(), fmt.Sprintf("✅ Usuario <b>%s</b> eliminado correctamente.", u), markup, tele.ModeHTML)
-		}
-	}(user, chatID)
-
-	return nil
+	return handleMenuEliminar(c, b)
 }
 
 func finishSSHCreation(c tele.Context, b *tele.Bot, chatID int64, lastMsg *tele.Message) error {
-	// Limpiar el step
 	delete(userSteps, chatID)
 	delete(lastBotMsg, chatID)
-
 	mData := tempData[chatID]
 	user := mData["username"]
 	pass := mData["password"]
@@ -233,92 +292,21 @@ func finishSSHCreation(c tele.Context, b *tele.Bot, chatID int64, lastMsg *tele.
 	limit, _ := strconv.Atoi(mData["limit"])
 	quota, _ := strconv.ParseFloat(mData["quota"], 64)
 
-	// Avisar que está trabajando
-	b.Edit(lastMsg, "⏳ <i>Creando cuenta en el sistema...</i>", tele.ModeHTML)
-
-	// Llamada a nuestro módulo sys nativo en Go
+	b.Edit(lastMsg, "⏳ Creando...", tele.ModeHTML)
 	err := sys.CreateSSHUser(user, pass, days)
 	if err != nil {
-		b.Edit(lastMsg, fmt.Sprintf("❌ <b>ERROR al crear:</b>\n<pre>%v</pre>", err), tele.ModeHTML)
+		b.Edit(lastMsg, "❌ Error: "+err.Error(), tele.ModeHTML)
 		return nil
 	}
-
-	// Limites
 	sys.SetConnectionLimit(user, limit)
 	sys.SetDataQuota(user, quota)
-
-	// Guardar en la DB
 	dbData, _ := db.Load()
 	dbData.SSHOwners[user] = fmt.Sprintf("%d", chatID)
 	db.Save(dbData)
 
-	// Formatear Mensaje Éxito (Igualito a Bash V6.7)
-	limitStr := mData["limit"]
-	if limit == 0 {
-		limitStr = "Ilimitado"
-	}
-	quotaStr := mData["quota"] + " GB"
-	if quota == 0 {
-		quotaStr = "Ilimitado"
-	}
-
-	exito := "✅ <b>NUEVO USUARIO CREADO</b>\n"
-	exito += "━━━━━━━━━━━━━━\n"
-	exito += fmt.Sprintf("👤 <b>Usuario:</b> <code>%s</code>\n", user)
-	exito += fmt.Sprintf("🔑 <b>Pass:</b> <code>%s</code>\n", pass)
-	exito += fmt.Sprintf("⏳ <b>Días:</b> %d\n", days)
-	exito += fmt.Sprintf("📱 <b>Conexiones:</b> %s\n", limitStr)
-	exito += fmt.Sprintf("📊 <b>Datos:</b> %s\n", quotaStr)
-	exito += "━━━━━━━━━━━━━━\n"
-	exito += "<code>IP: " + sys.GetPublicIP() + "</code>\n"
-
-	// Agregar info de protocolos activos
-	data, _ := db.Load()
-	protoInfo := ""
-	if data.SlowDNS.NS != "" {
-		protoInfo += fmt.Sprintf("🐢 <b>SlowDNS NS:</b> <code>%s</code>\n", data.SlowDNS.NS)
-		if data.SlowDNS.Key != "" {
-			protoInfo += fmt.Sprintf("🔑 <b>SlowDNS Key:</b> <code>%s</code>\n", data.SlowDNS.Key)
-		}
-	}
-	if data.Zivpn {
-		protoInfo += "🛰️ <b>ZiVPN UDP:</b> <code>activo</code>\n"
-	}
-	if data.Falcon != "" {
-		protoInfo += fmt.Sprintf("🦅 <b>Falcon Proxy:</b> <code>%s</code>\n", data.Falcon)
-	}
-	if data.Dropbear != "" {
-		protoInfo += fmt.Sprintf("🐻 <b>Dropbear:</b> <code>%s</code>\n", data.Dropbear)
-	}
-	if data.CloudflareDomain != "" {
-		protoInfo += fmt.Sprintf("☁️ <b>Cloudflare DNS:</b> <code>%s</code>\n", data.CloudflareDomain)
-	}
-	if data.CloudfrontDomain != "" {
-		protoInfo += fmt.Sprintf("🚀 <b>Cloudfront DNS:</b> <code>%s</code>\n", data.CloudfrontDomain)
-	}
-	if data.SSLTunnel != "" {
-		protoInfo += fmt.Sprintf("📜 <b>SSL Tunnel:</b> <code>%s</code>\n", data.SSLTunnel)
-	}
-	if len(data.ProxyDT.Ports) > 0 {
-		var pts []string
-		for p := range data.ProxyDT.Ports {
-			pts = append(pts, "<code>"+p+"</code>")
-		}
-		protoInfo += fmt.Sprintf("🌐 <b>ProxyDT:</b> %s\n", strings.Join(pts, ", "))
-	}
-
-	if protoInfo != "" {
-		exito += "━━━━━━━━━━━━━━\n"
-		exito += protoInfo
-		exito += "━━━━━━━━━━━━━━\n"
-	}
-
-	exito += "📢 <b>Canal:</b> @Depwise2\n"
-	exito += "👨‍💻 <b>Dev:</b> @Dan3651\n"
-
+	exito := fmt.Sprintf("✅ <b>CREADO:</b> <code>%s</code>\n🔑 Pass: <code>%s</code>", user, pass)
 	markup := &tele.ReplyMarkup{}
-	markup.Inline(markup.Row(markup.Data("🔙 Ir al Menú", "menu_crear")))
-
+	markup.Inline(markup.Row(markup.Data("🔙 Menú", "menu_crear")))
 	b.Edit(lastMsg, exito, markup, tele.ModeHTML)
 	return nil
 }
@@ -328,43 +316,58 @@ func handleCancel(c tele.Context, b *tele.Bot) error {
 	delete(userSteps, chatID)
 	delete(tempData, chatID)
 	delete(lastBotMsg, chatID)
-	return handleStart(c, b) // Llama la funcion desde menu.go
+	return handleStart(c, b)
 }
 
 func handleRandomPass(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
-	step, exists := userSteps[chatID]
-	if !exists || step != "awaiting_ssh_password" {
-		return nil
-	}
-
-	// Generar random de 6 digitos
 	pass := fmt.Sprintf("%06d", rand.Intn(1000000))
 	tempData[chatID]["password"] = pass
-
 	lastMsg := lastBotMsg[chatID]
-
-	// Si NO es SuperAdmin, auto-asignar valores según rol
 	if !isSuperAdminID(chatID) {
-		if isAdmin(chatID) {
-			// Admin: 7 días, 20 conexiones, 30 GB
-			tempData[chatID]["days"] = "7"
-			tempData[chatID]["limit"] = "20"
-			tempData[chatID]["quota"] = "30"
-		} else {
-			// Público: 3 días, 1 conexión, 6 GB
-			tempData[chatID]["days"] = "3"
-			tempData[chatID]["limit"] = "1"
-			tempData[chatID]["quota"] = "6"
-		}
 		return finishSSHCreation(c, b, chatID, lastMsg)
 	}
-
-	// SuperAdmin: flujo completo
 	userSteps[chatID] = "awaiting_ssh_days"
+	_, err := b.Edit(lastMsg, "✅ Pass: "+pass+"\n⏳ Días:", tele.ModeHTML)
+	return err
+}
 
-	markupCancel := &tele.ReplyMarkup{}
-	markupCancel.Inline(markupCancel.Row(markupCancel.Data("❌ Cancelar", "cancelar_accion")))
+func HandleEditPass(c tele.Context, b *tele.Bot) error {
+	chatID := c.Chat().ID
+	user := tempData[chatID]["edit_target"]
+	userSteps[chatID] = "awaiting_edit_pass_val"
+	lastBotMsg[chatID] = c.Message()
+	markup := &tele.ReplyMarkup{}
+	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "cancelar_accion")))
+	return c.Edit(fmt.Sprintf("🔑 <b>Cambiando Pass:</b> <code>%s</code>\n✏️ Nueva pass:", user), markup, tele.ModeHTML)
+}
 
-	return c.Edit(fmt.Sprintf("✅ Contraseña <code>%s</code> generada.\n\n⏳ <i>¿Cuántos días de duración (ej: 30)?</i>", pass), markupCancel, tele.ModeHTML)
+func HandleEditRenew(c tele.Context, b *tele.Bot) error {
+	chatID := c.Chat().ID
+	user := tempData[chatID]["edit_target"]
+	userSteps[chatID] = "awaiting_edit_renew_val"
+	lastBotMsg[chatID] = c.Message()
+	markup := &tele.ReplyMarkup{}
+	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "cancelar_accion")))
+	return c.Edit(fmt.Sprintf("📅 <b>Renovando:</b> <code>%s</code>\n✏️ ¿Días extra?", user), markup, tele.ModeHTML)
+}
+
+func HandleEditLimit(c tele.Context, b *tele.Bot) error {
+	chatID := c.Chat().ID
+	user := tempData[chatID]["edit_target"]
+	userSteps[chatID] = "awaiting_edit_limit_val"
+	lastBotMsg[chatID] = c.Message()
+	markup := &tele.ReplyMarkup{}
+	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "cancelar_accion")))
+	return c.Edit(fmt.Sprintf("📱 <b>Límite:</b> <code>%s</code>\n✏️ Nuevo límite (0=inf):", user), markup, tele.ModeHTML)
+}
+
+func HandleEditQuota(c tele.Context, b *tele.Bot) error {
+	chatID := c.Chat().ID
+	user := tempData[chatID]["edit_target"]
+	userSteps[chatID] = "awaiting_edit_quota_val"
+	lastBotMsg[chatID] = c.Message()
+	markup := &tele.ReplyMarkup{}
+	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "cancelar_accion")))
+	return c.Edit(fmt.Sprintf("📊 <b>Cuota GB:</b> <code>%s</code>\n✏️ Nueva cuota (0=inf):", user), markup, tele.ModeHTML)
 }

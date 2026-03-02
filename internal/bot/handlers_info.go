@@ -144,27 +144,34 @@ func handleMenuEliminar(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
 	data, _ := db.Load()
 
-	markup := &tele.ReplyMarkup{}
-	var rows []tele.Row
-
 	// Filtrar usuarios permitidos para este chatID (o todos si es SuperAdmin)
 	sa, _ := strconv.ParseInt(superAdmin, 10, 64)
 	isSA := chatID == sa
 
+	res := "🗑️ <b>ELIMINAR USUARIO SSH</b>\n"
+	res += "━━━━━━━━━━━━━━\n"
+
 	count := 0
 	for user, ownerID := range data.SSHOwners {
 		if isSA || ownerID == fmt.Sprintf("%d", chatID) {
-			rows = append(rows, markup.Row(markup.Data("👤 "+user, "del_confirm:"+user)))
+			res += fmt.Sprintf("👤 <code>%s</code>\n", user)
 			count++
 		}
 	}
 
-	rows = append(rows, markup.Row(markup.Data("🔙 Volver", "back_main")))
-	markup.Inline(rows...)
+	markup := &tele.ReplyMarkup{}
+	markup.Inline(markup.Row(markup.Data("🔙 Volver", "back_main")))
 
 	if count == 0 {
 		return c.Edit("❌ <b>No hay usuarios para eliminar.</b>", markup, tele.ModeHTML)
 	}
 
-	return c.Edit("🗑️ <b>Eliminar Usuario SSH</b>\n\nSelecciona el usuario que deseas eliminar para siempre:", markup, tele.ModeHTML)
+	res += "━━━━━━━━━━━━━━\n"
+	res += "✏️ <b>Escribe el nombre del usuario</b> que deseas eliminar exactamente como aparece arriba:"
+
+	// Cambiar estado a espera de texto
+	userSteps[chatID] = "awaiting_delete_user_selection"
+	lastBotMsg[chatID] = c.Message()
+
+	return c.Edit(res, markup, tele.ModeHTML)
 }
