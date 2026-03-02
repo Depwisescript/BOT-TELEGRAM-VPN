@@ -292,21 +292,90 @@ func finishSSHCreation(c tele.Context, b *tele.Bot, chatID int64, lastMsg *tele.
 	limit, _ := strconv.Atoi(mData["limit"])
 	quota, _ := strconv.ParseFloat(mData["quota"], 64)
 
-	b.Edit(lastMsg, "⏳ Creando...", tele.ModeHTML)
+	b.Edit(lastMsg, "⏳ <i>Creando cuenta en el sistema...</i>", tele.ModeHTML)
+
+	// Crear usuario en el sistema
 	err := sys.CreateSSHUser(user, pass, days)
 	if err != nil {
-		b.Edit(lastMsg, "❌ Error: "+err.Error(), tele.ModeHTML)
+		b.Edit(lastMsg, fmt.Sprintf("❌ <b>ERROR:</b>\n<pre>%v</pre>", err), tele.ModeHTML)
 		return nil
 	}
+
+	// Aplicar limites
 	sys.SetConnectionLimit(user, limit)
 	sys.SetDataQuota(user, quota)
+
+	// Guardar en DB
 	dbData, _ := db.Load()
 	dbData.SSHOwners[user] = fmt.Sprintf("%d", chatID)
 	db.Save(dbData)
 
-	exito := fmt.Sprintf("✅ <b>CREADO:</b> <code>%s</code>\n🔑 Pass: <code>%s</code>", user, pass)
+	// Formatear Mensaje Éxito Detallado
+	limitStr := mData["limit"]
+	if limit == 0 {
+		limitStr = "Ilimitado"
+	}
+	quotaStr := mData["quota"] + " GB"
+	if quota == 0 {
+		quotaStr = "Ilimitado"
+	}
+
+	exito := "✅ <b>NUEVO USUARIO CREADO</b>\n"
+	exito += "━━━━━━━━━━━━━━\n"
+	exito += fmt.Sprintf("👤 <b>Usuario:</b> <code>%s</code>\n", user)
+	exito += fmt.Sprintf("🔑 <b>Pass:</b> <code>%s</code>\n", pass)
+	exito += fmt.Sprintf("⏳ <b>Días:</b> %d\n", days)
+	exito += fmt.Sprintf("📱 <b>Conexiones:</b> %s\n", limitStr)
+	exito += fmt.Sprintf("📊 <b>Datos:</b> %s\n", quotaStr)
+	exito += "━━━━━━━━━━━━━━\n"
+	exito += "<code>IP: " + sys.GetPublicIP() + "</code>\n"
+
+	// Info de protocolos
+	protoInfo := ""
+	if dbData.SlowDNS.NS != "" {
+		protoInfo += fmt.Sprintf("🐢 <b>SlowDNS NS:</b> <code>%s</code>\n", dbData.SlowDNS.NS)
+		if dbData.SlowDNS.Key != "" {
+			protoInfo += fmt.Sprintf("🔑 <b>SlowDNS Key:</b> <code>%s</code>\n", dbData.SlowDNS.Key)
+		}
+	}
+	if dbData.Zivpn {
+		protoInfo += "🛰️ <b>ZiVPN UDP:</b> <code>activo</code>\n"
+	}
+	if dbData.Falcon != "" {
+		protoInfo += fmt.Sprintf("🦅 <b>Falcon Proxy:</b> <code>%s</code>\n", dbData.Falcon)
+	}
+	if dbData.Dropbear != "" {
+		protoInfo += fmt.Sprintf("🐻 <b>Dropbear:</b> <code>%s</code>\n", dbData.Dropbear)
+	}
+	if dbData.CloudflareDomain != "" {
+		protoInfo += fmt.Sprintf("☁️ <b>Cloudflare DNS:</b> <code>%s</code>\n", dbData.CloudflareDomain)
+	}
+	if dbData.CloudfrontDomain != "" {
+		protoInfo += fmt.Sprintf("🚀 <b>Cloudfront DNS:</b> <code>%s</code>\n", dbData.CloudfrontDomain)
+	}
+	if dbData.SSLTunnel != "" {
+		protoInfo += fmt.Sprintf("📜 <b>SSL Tunnel:</b> <code>%s</code>\n", dbData.SSLTunnel)
+	}
+	if len(dbData.ProxyDT.Ports) > 0 {
+		var pts []string
+		for p := range dbData.ProxyDT.Ports {
+			pts = append(pts, "<code>"+p+"</code>")
+		}
+		protoInfo += fmt.Sprintf("🌐 <b>ProxyDT:</b> %s\n", strings.Join(pts, ", "))
+	}
+
+	if protoInfo != "" {
+		exito += "━━━━━━━━━━━━━━\n"
+		exito += protoInfo
+		exito += "━━━━━━━━━━━━━━\n"
+	}
+
+	exito += "📢 <b>Canal:</b> @Depwise2\n"
+	exito += "👨‍💻 <b>Dev:</b> @Dan3651\n"
+
 	markup := &tele.ReplyMarkup{}
-	markup.Inline(markup.Row(markup.Data("🔙 Menú", "menu_crear")))
+	markup.Inline(markup.Row(markup.Data("🔙 Ir al Menú", "menu_crear")))
+
 	b.Edit(lastMsg, exito, markup, tele.ModeHTML)
 	return nil
 }
