@@ -31,12 +31,6 @@ func handleCrearZivpn(c tele.Context, b *tele.Bot) error {
 	return c.Edit("🛰️ <b>Crear Acceso ZiVPN</b>\n\n🔑 <i>Escribe la contraseña (Password) para el nuevo acceso:</i>", markup, tele.ModeHTML)
 }
 
-// isSuperAdminID verifica si el chatID es el SuperAdmin
-func isSuperAdminID(chatID int64) bool {
-	sa, _ := strconv.ParseInt(superAdmin, 10, 64)
-	return chatID == sa
-}
-
 func finishZivpnCreation(c tele.Context, password string, days int, chatID int64, b *tele.Bot, lastMsg *tele.Message) error {
 	b.Edit(lastMsg, "⏳ <i>Registrando acceso en ZiVPN...</i>", tele.ModeHTML)
 

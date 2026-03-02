@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/Depwisescript/BOT-TELEGRAM-VPN/internal/db"
-	"github.com/Depwisescript/BOT-TELEGRAM-VPN/internal/sys"
 	tele "gopkg.in/telebot.v3"
 )
 
@@ -32,6 +31,7 @@ func handleMenuAdmins(c tele.Context, b *tele.Bot) error {
 	btnCloudfront := markup.Data("🚀 Cloudfront Domain", "edit_cloudfront")
 	btnBanner := markup.Data("📜 Banner SSH", "edit_banner")
 	btnReset := markup.Data("🧹 Limpiar Historial", "reset_history")
+	btnButtons := markup.Data("🎮 Gestión de Botones", "menu_buttons")
 	btnReboot := markup.Data("🔄 Reiniciar VPS", "reboot_vps_confirm")
 	btnBack := markup.Data("🔙 Volver", "back_main")
 
@@ -41,7 +41,8 @@ func handleMenuAdmins(c tele.Context, b *tele.Bot) error {
 		markup.Row(btnDel, btnInfo),
 		markup.Row(btnCloudflare, btnCloudfront),
 		markup.Row(btnBanner),
-		markup.Row(btnReset, btnReboot),
+		markup.Row(btnReset, btnButtons),
+		markup.Row(btnReboot),
 		markup.Row(btnBack),
 	)
 
@@ -189,17 +190,84 @@ func handleServerRebootExec(c tele.Context, b *tele.Bot) error {
 	return nil
 }
 
-func handleDeepCleanup(c tele.Context, b *tele.Bot) error {
-	c.Edit("🧹 <b>Iniciando limpieza profunda...</b>\nEsto puede tardar unos segundos.", tele.ModeHTML)
-
-	report, err := sys.PerformFullCleanup()
-
-	markup := &tele.ReplyMarkup{}
-	markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_admins")))
-
-	if err != nil {
-		return c.Edit("❌ <b>Error durante la limpieza:</b>\n"+err.Error(), markup, tele.ModeHTML)
+func handleMenuButtons(c tele.Context, b *tele.Bot) error {
+	chatID := c.Chat().ID
+	if !isSuperAdminID(chatID) {
+		return c.Send("⛔ Solo el SuperAdmin puede gestionar la visibilidad de botones.", tele.ModeHTML)
 	}
 
-	return c.Edit(report, markup, tele.ModeHTML)
+	data, _ := db.Load()
+	markup := &tele.ReplyMarkup{}
+
+	// ID de botones a gestionar
+	btns := []struct {
+		ID   string
+		Name string
+	}{
+		{"menu_crear", "👤 Crear SSH"},
+		{"menu_info", "📡 Info Servidor"},
+		{"menu_editar", "✏️ Editar SSH"},
+		{"menu_eliminar", "🗑️ Eliminar SSH"},
+		{"menu_scanner", "🔍 Escaner"},
+		{"menu_online", "⚙️ Monitor Online"},
+		{"menu_protocols", "⚙️ Protocolos"},
+		{"menu_admins", "⚙️ Ajustes Pro"},
+	}
+
+	var rows []tele.Row
+	for _, btn := range btns {
+		vis := data.ButtonVisibility[btn.ID]
+		pubIcon := "❌"
+		if vis.ShowPublic {
+			pubIcon = "✅"
+		}
+		admIcon := "❌"
+		if vis.ShowAdmin {
+			admIcon = "✅"
+		}
+
+		label := fmt.Sprintf("%s | P:%s A:%s", btn.Name, pubIcon, admIcon)
+		rows = append(rows, markup.Row(
+			markup.Data(label, "toggle_btn_vis:"+btn.ID),
+		))
+	}
+
+	rows = append(rows, markup.Row(markup.Data("🔙 Volver", "menu_admins")))
+	markup.Inline(rows...)
+
+	texto := "🎮 <b>GESTIÓN DE VISIBILIDAD</b>\n\n"
+	texto += "Configura qué botones son visibles para cada rango.\n"
+	texto += "P = Público | A = Administradores\n\n"
+	texto += "<i>Toca un botón para rotar su visibilidad:</i>\n"
+	texto += "1. ✅ P | ✅ A\n2. ❌ P | ✅ A\n3. ❌ P | ❌ A"
+
+	return c.Edit(texto, markup, tele.ModeHTML)
+}
+
+func handleToggleButtonVisibility(c tele.Context, b *tele.Bot) error {
+	btnID := strings.TrimPrefix(c.Callback().Data, "toggle_btn_vis:")
+
+	db.Update(func(data *db.ConfigData) error {
+		vis := data.ButtonVisibility[btnID]
+
+		// Ciclo de visibilidad
+		if vis.ShowPublic && vis.ShowAdmin {
+			// Caso 1 -> Caso 2 (Ocultar a Publico)
+			vis.ShowPublic = false
+			vis.ShowAdmin = true
+		} else if !vis.ShowPublic && vis.ShowAdmin {
+			// Caso 2 -> Caso 3 (Ocultar a Admin también)
+			vis.ShowPublic = false
+			vis.ShowAdmin = false
+		} else {
+			// Caso 3 (o cualquier otro) -> Caso 1 (Mostrar a todos)
+			vis.ShowPublic = true
+			vis.ShowAdmin = true
+		}
+
+		data.ButtonVisibility[btnID] = vis
+		return nil
+	})
+
+	return handleMenuButtons(c, b)
 }

@@ -158,6 +158,8 @@ func StartBot() {
 	b.Handle(&tele.Btn{Unique: "reset_history_exec"}, func(c tele.Context) error { return handleResetHistoryExec(c, b) })
 	b.Handle(&tele.Btn{Unique: "reboot_vps_confirm"}, func(c tele.Context) error { return handleServerRebootConfirm(c, b) })
 	b.Handle(&tele.Btn{Unique: "reboot_vps_exec"}, func(c tele.Context) error { return handleServerRebootExec(c, b) })
+	b.Handle(&tele.Btn{Unique: "menu_buttons"}, func(c tele.Context) error { return handleMenuButtons(c, b) })
+	b.Handle("\ftoggle_btn_vis:", func(c tele.Context) error { return handleToggleButtonVisibility(c, b) })
 
 	// Generar Usuario SSH / ZIVPN Handler
 	b.Handle(&tele.Btn{Unique: "crear_ssh"}, func(c tele.Context) error {
@@ -189,13 +191,17 @@ func StartBot() {
 }
 
 func isAdmin(chatID int64) bool {
-	sa, _ := strconv.ParseInt(superAdmin, 10, 64)
-	if chatID == sa {
+	if isSuperAdminID(chatID) {
 		return true
 	}
 	data, _ := db.Load()
 	_, exists := data.Admins[fmt.Sprintf("%d", chatID)]
 	return exists
+}
+
+func isSuperAdminID(chatID int64) bool {
+	sa, _ := strconv.ParseInt(superAdmin, 10, 64)
+	return chatID == sa
 }
 
 func handleStart(c tele.Context, b *tele.Bot) error {
@@ -273,32 +279,76 @@ func buildMainMenuMarkup(chatID int64) *tele.ReplyMarkup {
 	btnProtocols := menu.Data("⚙️ Protocolos", "menu_protocols")
 	btnSettings := menu.Data("⚙️ Ajustes Pro", "menu_admins")
 
+	data, _ := db.Load()
 	sa, _ := strconv.ParseInt(superAdmin, 10, 64)
 	isSA := chatID == sa
 	isAdm := isAdmin(chatID)
 
-	// Construir filas dinámicamente usando Slices
-	var rows []tele.Row
-
-	// Fila 1 (Compartida por todos)
-	rows = append(rows, menu.Row(btnCrear, btnInfo))
-	rows = append(rows, menu.Row(btnScanner))
-
-	// Fila 2
-	if isSA || isAdm {
-		rows = append(rows, menu.Row(btnEditar))
+	// Helper para verificar visibilidad
+	show := func(btnID string) bool {
+		if isSA {
+			return true
+		}
+		vis, exists := data.ButtonVisibility[btnID]
+		if !exists {
+			return true // Default visible if not set
+		}
+		if isAdm {
+			return vis.ShowAdmin
+		}
+		return vis.ShowPublic
 	}
 
-	// Fila 3
-	if isSA || isAdm {
-		rows = append(rows, menu.Row(btnDelete, btnOnline))
-	} else {
+	// Construir filas dinámicamente
+	var rows []tele.Row
+
+	// Fila 1: Crear e Info
+	row1 := []tele.Btn{}
+	if show("menu_crear") {
+		row1 = append(row1, btnCrear)
+	}
+	if show("menu_info") {
+		row1 = append(row1, btnInfo)
+	}
+	if len(row1) > 0 {
+		rows = append(rows, menu.Row(row1...))
+	}
+
+	// Fila 2: Scanner
+	if show("menu_scanner") {
+		rows = append(rows, menu.Row(btnScanner))
+	}
+
+	// Fila 3: Editar y Online
+	row3 := []tele.Btn{}
+	if show("menu_editar") {
+		row3 = append(row3, btnEditar)
+	}
+	if show("menu_online") {
+		row3 = append(row3, btnOnline)
+	}
+	if len(row3) > 0 {
+		rows = append(rows, menu.Row(row3...))
+	}
+
+	// Fila 4: Eliminar
+	if show("menu_eliminar") {
 		rows = append(rows, menu.Row(btnDelete))
 	}
 
-	// Filas de SuperAdmin
-	if isSA {
-		rows = append(rows, menu.Row(btnGlobal, btnProtocols))
+	// Fila 5: SuperAdmin / Admin Config
+	rowSA := []tele.Btn{}
+	if show("menu_broadcast") {
+		rowSA = append(rowSA, btnGlobal)
+	}
+	if show("menu_protocols") {
+		rowSA = append(rowSA, btnProtocols)
+	}
+	if len(rowSA) > 0 {
+		rows = append(rows, menu.Row(rowSA...))
+	}
+
+	if show("menu_admins") {
 		rows = append(rows, menu.Row(btnSettings))
 	}
 
