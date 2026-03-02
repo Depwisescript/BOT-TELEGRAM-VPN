@@ -32,7 +32,6 @@ func handleMenuAdmins(c tele.Context, b *tele.Bot) error {
 	btnCloudfront := markup.Data("🚀 Cloudfront Domain", "edit_cloudfront")
 	btnBanner := markup.Data("📜 Banner SSH", "edit_banner")
 	btnReset := markup.Data("🧹 Limpiar Historial", "reset_history")
-	btnDeepClean := markup.Data("🧹 Limpiar Basura SSD", "deep_cleanup")
 	btnClean := markup.Data("⚠️ Reset DB", "clean_db_confirm")
 	btnReboot := markup.Data("🔄 Reiniciar VPS", "reboot_vps_confirm")
 	btnBack := markup.Data("🔙 Volver", "back_main")
@@ -43,7 +42,7 @@ func handleMenuAdmins(c tele.Context, b *tele.Bot) error {
 		markup.Row(btnDel, btnInfo),
 		markup.Row(btnCloudflare, btnCloudfront),
 		markup.Row(btnBanner),
-		markup.Row(btnReset, btnDeepClean),
+		markup.Row(btnReset),
 		markup.Row(btnClean, btnReboot),
 		markup.Row(btnBack),
 	)
