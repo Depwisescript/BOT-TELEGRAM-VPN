@@ -37,7 +37,7 @@ func isSuperAdminID(chatID int64) bool {
 	return chatID == sa
 }
 
-func finishZivpnCreation(password string, days int, chatID int64, b *tele.Bot, lastMsg *tele.Message) error {
+func finishZivpnCreation(c tele.Context, password string, days int, chatID int64, b *tele.Bot, lastMsg *tele.Message) error {
 	b.Edit(lastMsg, "⏳ <i>Registrando acceso en ZiVPN...</i>", tele.ModeHTML)
 
 	err := vpn.AddZivpnUser(password)
@@ -60,6 +60,10 @@ func finishZivpnCreation(password string, days int, chatID int64, b *tele.Bot, l
 		}
 		data.ZivpnUsers[password] = expireDate
 		data.ZivpnOwners[password] = fmt.Sprintf("%d", chatID)
+		// Guardar @handle
+		if c != nil && c.Sender() != nil && c.Sender().Username != "" {
+			data.ZivpnHandles[password] = "@" + c.Sender().Username
+		}
 		// Inicializar actividad
 		data.ZivpnLastActive[password] = time.Now().Format(time.RFC3339)
 		return nil
@@ -125,7 +129,7 @@ func processZivpnSteps(step string, text string, chatID int64, c tele.Context, b
 
 		delete(userSteps, chatID)
 		delete(lastBotMsg, chatID)
-		return finishZivpnCreation(password, days, chatID, b, lastMsg)
+		return finishZivpnCreation(c, password, days, chatID, b, lastMsg)
 
 	case "awaiting_zivpn_days":
 		days, err := strconv.Atoi(strings.TrimSpace(text))
@@ -137,7 +141,7 @@ func processZivpnSteps(step string, text string, chatID int64, c tele.Context, b
 		password := tempData[chatID]["zivpn_pass"]
 		delete(userSteps, chatID)
 		delete(lastBotMsg, chatID)
-		return finishZivpnCreation(password, days, chatID, b, lastMsg)
+		return finishZivpnCreation(c, password, days, chatID, b, lastMsg)
 	}
 
 	return nil

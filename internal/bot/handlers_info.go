@@ -136,7 +136,12 @@ func handleMenuEliminar(c tele.Context, b *tele.Bot) error {
 	count := 0
 	for user, ownerID := range data.SSHOwners {
 		if isSA || ownerID == fmt.Sprintf("%d", chatID) {
-			res += fmt.Sprintf("👤 <code>%s</code>\n", user)
+			handle := data.SSHHandles[user]
+			if handle != "" {
+				res += fmt.Sprintf("👤 <code>%s</code> (%s)\n", user, handle)
+			} else {
+				res += fmt.Sprintf("👤 <code>%s</code>\n", user)
+			}
 			count++
 		}
 	}

@@ -30,6 +30,8 @@ type ConfigData struct {
 	SSHBanner        string               `json:"ssh_banner"`
 	SSHLastActive    map[string]string    `json:"ssh_last_active"`   // user -> last active RFC3339
 	ZivpnLastActive  map[string]string    `json:"zivpn_last_active"` // pass -> last active RFC3339
+	SSHHandles       map[string]string    `json:"ssh_handles"`       // user -> @handle
+	ZivpnHandles     map[string]string    `json:"zivpn_handles"`     // pass -> @handle
 }
 
 type AdminInfo struct {
@@ -111,6 +113,12 @@ func loadUnlocked() (*ConfigData, error) {
 	if data.ZivpnLastActive == nil {
 		data.ZivpnLastActive = make(map[string]string)
 	}
+	if data.SSHHandles == nil {
+		data.SSHHandles = make(map[string]string)
+	}
+	if data.ZivpnHandles == nil {
+		data.ZivpnHandles = make(map[string]string)
+	}
 
 	return &data, nil
 }
@@ -167,5 +175,7 @@ func defaultData() *ConfigData {
 		},
 		SSHLastActive:   make(map[string]string),
 		ZivpnLastActive: make(map[string]string),
+		SSHHandles:      make(map[string]string),
+		ZivpnHandles:    make(map[string]string),
 	}
 }

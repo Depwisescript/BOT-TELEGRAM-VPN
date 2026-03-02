@@ -214,7 +214,12 @@ func handleMenuEditar(c tele.Context, b *tele.Bot) error {
 	count := 0
 	for user, ownerID := range data.SSHOwners {
 		if isSA || ownerID == fmt.Sprintf("%d", chatID) {
-			res += "👤 <code>" + user + "</code>\n"
+			handle := data.SSHHandles[user]
+			if handle != "" {
+				res += fmt.Sprintf("👤 <code>%s</code> (%s)\n", user, handle)
+			} else {
+				res += "👤 <code>" + user + "</code>\n"
+			}
 			count++
 		}
 	}
@@ -281,6 +286,10 @@ func finishSSHCreation(c tele.Context, b *tele.Bot, chatID int64, lastMsg *tele.
 	// Guardar en DB
 	dbData, _ := db.Load()
 	dbData.SSHOwners[user] = fmt.Sprintf("%d", chatID)
+	// Guardar @handle si existe
+	if c.Sender() != nil && c.Sender().Username != "" {
+		dbData.SSHHandles[user] = "@" + c.Sender().Username
+	}
 	db.Save(dbData)
 
 	// Formatear Mensaje Éxito Detallado
