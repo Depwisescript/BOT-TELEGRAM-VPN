@@ -236,6 +236,11 @@ func handleTextInputs(c tele.Context, b *tele.Bot) error {
 		return nil
 
 	default:
+		// Intentar con Scanner
+		if step == "awaiting_scanner_domain" {
+			return processScannerSteps(step, text, chatID, c, b, lastMsg)
+		}
+		// Intentar con VPN/Broadcast
 		return processVPNSteps(step, text, chatID, c, b, lastMsg)
 	}
 

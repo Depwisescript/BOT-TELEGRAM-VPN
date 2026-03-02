@@ -58,6 +58,9 @@ func StartBot() {
 	b.Handle(&tele.Btn{Unique: "menu_broadcast"}, func(c tele.Context) error {
 		return handleMenuBroadcast(c, b)
 	})
+	b.Handle(&tele.Btn{Unique: "menu_scanner"}, func(c tele.Context) error {
+		return handleMenuScanner(c, b)
+	})
 	b.Handle(&tele.Btn{Unique: "menu_eliminar"}, func(c tele.Context) error {
 		return handleMenuEliminar(c, b)
 	})
@@ -171,6 +174,10 @@ func StartBot() {
 		return handleStart(c, b) // Vuelve al inicio redibujando o editando
 	})
 
+	b.Handle(&tele.Btn{Unique: "start_scanner_prompt"}, func(c tele.Context) error {
+		return handleStartScanPrompt(c, b)
+	})
+
 	// Iniciar hilo de auto-limpieza (Rutina concurrente)
 	go sys.AutoCleanupLoop(b)
 
@@ -258,6 +265,7 @@ func buildMainMenuMarkup(chatID int64) *tele.ReplyMarkup {
 	btnEditar := menu.Data("✏️ Editar SSH", "menu_editar")
 	btnDelete := menu.Data("🗑️ Eliminar SSH", "menu_eliminar")
 	btnGlobal := menu.Data("📢 Mensaje Global", "menu_broadcast")
+	btnScanner := menu.Data("🔍 Escaner", "menu_scanner")
 	btnOnline := menu.Data("⚙️ Monitor Online", "menu_online")
 	btnProtocols := menu.Data("⚙️ Protocolos", "menu_protocols")
 	btnSettings := menu.Data("⚙️ Ajustes Pro", "menu_admins")
@@ -271,6 +279,7 @@ func buildMainMenuMarkup(chatID int64) *tele.ReplyMarkup {
 
 	// Fila 1 (Compartida por todos)
 	rows = append(rows, menu.Row(btnCrear, btnInfo))
+	rows = append(rows, menu.Row(btnScanner))
 
 	// Fila 2
 	if isSA || isAdm {
