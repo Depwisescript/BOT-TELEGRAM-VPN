@@ -55,9 +55,6 @@ func StartBot() {
 	b.Handle(&tele.Btn{Unique: "menu_info"}, func(c tele.Context) error {
 		return handleInfo(c, b)
 	})
-	b.Handle(&tele.Btn{Unique: "my_stats"}, func(c tele.Context) error {
-		return handleMyStats(c, b)
-	})
 	b.Handle(&tele.Btn{Unique: "menu_broadcast"}, func(c tele.Context) error {
 		return handleMenuBroadcast(c, b)
 	})
@@ -260,7 +257,6 @@ func buildMainMenuMarkup(chatID int64) *tele.ReplyMarkup {
 
 	btnCrear := menu.Data("👤 Crear SSH", "menu_crear")
 	btnInfo := menu.Data("📡 Info Servidor", "menu_info")
-	btnStats := menu.Data("📊 Mis Consumos", "my_stats")
 	btnEditar := menu.Data("✏️ Editar SSH", "menu_editar")
 	btnDelete := menu.Data("🗑️ Eliminar SSH", "menu_eliminar")
 	btnGlobal := menu.Data("📢 Mensaje Global", "menu_broadcast")
@@ -280,9 +276,7 @@ func buildMainMenuMarkup(chatID int64) *tele.ReplyMarkup {
 
 	// Fila 2
 	if isSA || isAdm {
-		rows = append(rows, menu.Row(btnStats, btnEditar))
-	} else {
-		rows = append(rows, menu.Row(btnStats))
+		rows = append(rows, menu.Row(btnEditar))
 	}
 
 	// Fila 3

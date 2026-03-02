@@ -121,47 +121,6 @@ func handleMenuOnline(c tele.Context, b *tele.Bot) error {
 	return c.Edit(res, markup, tele.ModeHTML)
 }
 
-func handleMyStats(c tele.Context, b *tele.Bot) error {
-	chatID := c.Chat().ID
-	data, _ := db.Load()
-
-	// Buscar que usuarios le pertenecen a este chatID
-	var myUsers []string
-	for user, ownerID := range data.SSHOwners {
-		if ownerID == fmt.Sprintf("%d", chatID) {
-			myUsers = append(myUsers, user)
-		}
-	}
-
-	if len(myUsers) == 0 {
-		return c.Send("❌ No tienes ningún usuario asignado o creado.", tele.ModeHTML)
-	}
-
-	sa, _ := strconv.ParseInt(superAdmin, 10, 64)
-	isSA := chatID == sa
-
-	res := "📊 <b>Tus Usuarios SSH y Consumos</b>\n\n"
-
-	if isSA {
-		rx, tx := sys.GetGlobalTraffic()
-		res = "🌐 <b>RESUMEN GLOBAL VPS</b>\n"
-		res += fmt.Sprintf("📥 <b>Bajada:</b> <code>%.2f GB</code>\n", rx)
-		res += fmt.Sprintf("📤 <b>Subida:</b> <code>%.2f GB</code>\n", tx)
-		res += fmt.Sprintf("👥 <b>Usuarios:</b> %d\n", len(data.SSHOwners))
-		res += "━━━━━━━━━━━━━━\n\n"
-		res += "👤 <b>DETALLE SSH DIRECTO:</b>\n"
-	}
-
-	for _, u := range myUsers {
-		res += fmt.Sprintf("👤 <code>%s</code>\n", u)
-	}
-
-	markup := &tele.ReplyMarkup{}
-	markup.Inline(markup.Row(markup.Data("🔙 Volver", "back_main")))
-
-	return c.Edit(res, markup, tele.ModeHTML)
-}
-
 // Interceptamos opciones administrativas de borrado
 func handleMenuEliminar(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
