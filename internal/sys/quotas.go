@@ -53,24 +53,33 @@ func SetDataQuota(username string, gb float64) error {
 	mark := fmt.Sprintf("0x%x", uid)
 	comment := "QUOTA_" + username
 
-	// --- IPv4 ---
+	// --- IPv4 Global (Solo si no existe) ---
+	// Restaurar marca en paquetes entrantes para poder contarlos (Global para todos los usuarios)
+	_ = exec.Command("iptables", "-t", "mangle", "-C", "PREROUTING", "-j", "CONNMARK", "--restore-mark").Run()
+	if checkErr := exec.Command("iptables", "-t", "mangle", "-C", "PREROUTING", "-j", "CONNMARK", "--restore-mark").Run(); checkErr != nil {
+		exec.Command("iptables", "-t", "mangle", "-I", "PREROUTING", "1", "-j", "CONNMARK", "--restore-mark").Run()
+	}
+
+	// --- IPv4 User Specific ---
 	// Marcar conexiones salientes por UID
-	exec.Command("iptables", "-t", "mangle", "-I", "OUTPUT", "-m", "owner", "--uid-owner", username, "-j", "CONNMARK", "--set-mark", mark).Run()
-	// Restaurar marca en paquetes entrantes para poder contarlos
-	exec.Command("iptables", "-t", "mangle", "-I", "PREROUTING", "-j", "CONNMARK", "--restore-mark").Run()
+	exec.Command("iptables", "-t", "mangle", "-I", "OUTPUT", "1", "-m", "owner", "--uid-owner", username, "-j", "CONNMARK", "--set-mark", mark).Run()
 
-	// Reglas de ACUMULACIÓN (Conteo)
+	// Reglas de ACUMULACIÓN (Conteo) con prioridad -I 1
 	// Salida (Upload desde el servidor / Download para el usuario)
-	exec.Command("iptables", "-I", "OUTPUT", "-m", "owner", "--uid-owner", username, "-m", "comment", "--comment", comment, "-j", "ACCEPT").Run()
+	exec.Command("iptables", "-I", "OUTPUT", "1", "-m", "owner", "--uid-owner", username, "-m", "comment", "--comment", comment, "-j", "ACCEPT").Run()
 	// Entrada (Download desde el servidor / Upload para el usuario)
-	exec.Command("iptables", "-I", "INPUT", "-m", "mark", "--mark", mark, "-m", "comment", "--comment", "IN_"+comment, "-j", "ACCEPT").Run()
+	exec.Command("iptables", "-I", "INPUT", "1", "-m", "mark", "--mark", mark, "-m", "comment", "--comment", "IN_"+comment, "-j", "ACCEPT").Run()
 
-	// --- IPv6 ---
-	exec.Command("ip6tables", "-t", "mangle", "-I", "OUTPUT", "-m", "owner", "--uid-owner", username, "-j", "CONNMARK", "--set-mark", mark).Run()
-	exec.Command("ip6tables", "-t", "mangle", "-I", "PREROUTING", "-j", "CONNMARK", "--restore-mark").Run()
+	// --- IPv6 Global (Solo si no existe) ---
+	if checkErr := exec.Command("ip6tables", "-t", "mangle", "-C", "PREROUTING", "-j", "CONNMARK", "--restore-mark").Run(); checkErr != nil {
+		exec.Command("ip6tables", "-t", "mangle", "-I", "PREROUTING", "1", "-j", "CONNMARK", "--restore-mark").Run()
+	}
 
-	exec.Command("ip6tables", "-I", "OUTPUT", "-m", "owner", "--uid-owner", username, "-m", "comment", "--comment", comment, "-j", "ACCEPT").Run()
-	exec.Command("ip6tables", "-I", "INPUT", "-m", "mark", "--mark", mark, "-m", "comment", "--comment", "IN_"+comment, "-j", "ACCEPT").Run()
+	// --- IPv6 User Specific ---
+	exec.Command("ip6tables", "-t", "mangle", "-I", "OUTPUT", "1", "-m", "owner", "--uid-owner", username, "-j", "CONNMARK", "--set-mark", mark).Run()
+
+	exec.Command("ip6tables", "-I", "OUTPUT", "1", "-m", "owner", "--uid-owner", username, "-m", "comment", "--comment", comment, "-j", "ACCEPT").Run()
+	exec.Command("ip6tables", "-I", "INPUT", "1", "-m", "mark", "--mark", mark, "-m", "comment", "--comment", "IN_"+comment, "-j", "ACCEPT").Run()
 
 	// 4. Guardar límite
 	os.MkdirAll("/etc/ssh_limits", 0755)
