@@ -51,6 +51,8 @@ func findGoBinary(name string) string {
 	// 3. Try common VPS Go bin paths
 	paths := []string{
 		"/usr/local/bin/" + name,
+		"/usr/bin/" + name,
+		"/bin/" + name,
 		"/root/go/bin/" + name,
 		"/usr/local/go/bin/" + name,
 		"/home/ubuntu/go/bin/" + name,
