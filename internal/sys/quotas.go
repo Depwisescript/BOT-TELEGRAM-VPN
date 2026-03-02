@@ -30,64 +30,86 @@ func SetConnectionLimit(username string, maxLogins int) error {
 	return err
 }
 
-// SetDataQuota define el límite en GB habilitando la regla de Iptables (v4 y v6)
+// SetDataQuota define el límite en GB habilitando la regla de Iptables (v4 y v6) con seguimiento bidireccional
 func SetDataQuota(username string, gb float64) error {
-	// 1. Limpiar cualquier regla previa de forma agresiva
+	// 1. Obtener UID
+	outUID, err := exec.Command("id", "-u", username).Output()
+	if err != nil {
+		return fmt.Errorf("usuario %s no existe", username)
+	}
+	uidStr := strings.TrimSpace(string(outUID))
+	uid, _ := strconv.Atoi(uidStr)
+
+	// 2. Limpiar
 	cleanUserRules(username)
 
 	if gb <= 0 {
-		// Opcional: borrar archivo de limite
 		os.Remove(fmt.Sprintf("/etc/ssh_limits/%s.limit", username))
 		return nil
 	}
 
-	// 2. Insertar regla de conteo (v4 y v6)
+	// 3. Crear reglas de MARCADO y CONTEO
+	// Usamos el UID como marca hexadecimal para evitar colisiones
+	mark := fmt.Sprintf("0x%x", uid)
 	comment := "QUOTA_" + username
-	err4 := exec.Command("iptables", "-I", "OUTPUT", "-m", "owner", "--uid-owner", username, "-m", "comment", "--comment", comment, "-j", "ACCEPT").Run()
-	err6 := exec.Command("ip6tables", "-I", "OUTPUT", "-m", "owner", "--uid-owner", username, "-m", "comment", "--comment", comment, "-j", "ACCEPT").Run()
 
-	if err4 != nil {
-		return fmt.Errorf("fallo al crear regla iptables v4: %v", err4)
-	}
-	// ip6tables podría fallar si IPv6 no está habilitado, lo tratamos como opcional pero loggeamos
-	if err6 != nil {
-		fmt.Printf("Aviso: No se pudo crear regla ip6tables para %s (IPv6 puede no estar activo)\n", username)
-	}
+	// --- IPv4 ---
+	// Marcar conexiones salientes por UID
+	exec.Command("iptables", "-t", "mangle", "-I", "OUTPUT", "-m", "owner", "--uid-owner", username, "-j", "CONNMARK", "--set-mark", mark).Run()
+	// Restaurar marca en paquetes entrantes para poder contarlos
+	exec.Command("iptables", "-t", "mangle", "-I", "PREROUTING", "-j", "CONNMARK", "--restore-mark").Run()
 
-	// 3. Archivo de límite (para referencia)
+	// Reglas de ACUMULACIÓN (Conteo)
+	// Salida (Upload desde el servidor / Download para el usuario)
+	exec.Command("iptables", "-I", "OUTPUT", "-m", "owner", "--uid-owner", username, "-m", "comment", "--comment", comment, "-j", "ACCEPT").Run()
+	// Entrada (Download desde el servidor / Upload para el usuario)
+	exec.Command("iptables", "-I", "INPUT", "-m", "mark", "--mark", mark, "-m", "comment", "--comment", "IN_"+comment, "-j", "ACCEPT").Run()
+
+	// --- IPv6 ---
+	exec.Command("ip6tables", "-t", "mangle", "-I", "OUTPUT", "-m", "owner", "--uid-owner", username, "-j", "CONNMARK", "--set-mark", mark).Run()
+	exec.Command("ip6tables", "-t", "mangle", "-I", "PREROUTING", "-j", "CONNMARK", "--restore-mark").Run()
+
+	exec.Command("ip6tables", "-I", "OUTPUT", "-m", "owner", "--uid-owner", username, "-m", "comment", "--comment", comment, "-j", "ACCEPT").Run()
+	exec.Command("ip6tables", "-I", "INPUT", "-m", "mark", "--mark", mark, "-m", "comment", "--comment", "IN_"+comment, "-j", "ACCEPT").Run()
+
+	// 4. Guardar límite
 	os.MkdirAll("/etc/ssh_limits", 0755)
 	return ioutil.WriteFile(fmt.Sprintf("/etc/ssh_limits/%s.limit", username), []byte(fmt.Sprintf("%f", gb)), 0644)
 }
 
 // cleanUserRules borra todas las posibles variaciones de reglas de un usuario
 func cleanUserRules(username string) {
-	comment := "QUOTA_" + username
-	blockComment := "BLOCKED_" + username
-
-	cmds := [][]string{
-		{"iptables", "-D", "OUTPUT", "-m", "owner", "--uid-owner", username, "-m", "comment", "--comment", comment, "-j", "ACCEPT"},
-		{"iptables", "-D", "OUTPUT", "-m", "owner", "--uid-owner", username, "-m", "comment", "--comment", blockComment, "-j", "REJECT"},
-		{"iptables", "-D", "OUTPUT", "-m", "owner", "--uid-owner", username, "-j", "ACCEPT"},
-		{"iptables", "-D", "OUTPUT", "-m", "owner", "--uid-owner", username, "-j", "REJECT"},
-		{"ip6tables", "-D", "OUTPUT", "-m", "owner", "--uid-owner", username, "-m", "comment", "--comment", comment, "-j", "ACCEPT"},
-		{"ip6tables", "-D", "OUTPUT", "-m", "owner", "--uid-owner", username, "-m", "comment", "--comment", blockComment, "-j", "REJECT"},
-		{"ip6tables", "-D", "OUTPUT", "-m", "owner", "--uid-owner", username, "-j", "ACCEPT"},
-		{"ip6tables", "-D", "OUTPUT", "-m", "owner", "--uid-owner", username, "-j", "REJECT"},
+	outUID, _ := exec.Command("id", "-u", username).Output()
+	uidStr := strings.TrimSpace(string(outUID))
+	mark := ""
+	if uidStr != "" {
+		u, _ := strconv.Atoi(uidStr)
+		mark = fmt.Sprintf("0x%x", u)
 	}
 
-	for _, c := range cmds {
-		// Ejecutamos hasta que falle (borrar todas las instancias si hubieran duplicadas)
-		for {
-			if err := exec.Command(c[0], c[1:]...).Run(); err != nil {
-				break
-			}
+	comment := "QUOTA_" + username
+	inComment := "IN_QUOTA_" + username
+	blockComment := "BLOCKED_" + username
+
+	tables := []string{"iptables", "ip6tables"}
+	for _, ipt := range tables {
+		// Borrar reglas de conteo
+		exec.Command(ipt, "-D", "OUTPUT", "-m", "owner", "--uid-owner", username, "-m", "comment", "--comment", comment, "-j", "ACCEPT").Run()
+		exec.Command(ipt, "-D", "INPUT", "-m", "mark", "--mark", mark, "-m", "comment", "--comment", inComment, "-j", "ACCEPT").Run()
+
+		// Borrar regla de bloqueo
+		exec.Command(ipt, "-D", "OUTPUT", "-m", "owner", "--uid-owner", username, "-m", "comment", "--comment", blockComment, "-j", "REJECT").Run()
+		exec.Command(ipt, "-D", "OUTPUT", "-m", "owner", "--uid-owner", username, "-j", "REJECT").Run()
+
+		// Borrar reglas de mangle (marcado)
+		if mark != "" {
+			exec.Command(ipt, "-t", "mangle", "-D", "OUTPUT", "-m", "owner", "--uid-owner", username, "-j", "CONNMARK", "--set-mark", mark).Run()
 		}
 	}
 }
 
-// EnforceDataQuotas escanea iptables una sola vez y aplica bloqueos a quienes excedan su cuota
+// EnforceDataQuotas escanea iptables y aplica bloqueos
 func EnforceDataQuotas() {
-	// 1. Obtener todos los límites configurados
 	limits := make(map[string]float64)
 	files, err := ioutil.ReadDir("/etc/ssh_limits")
 	if err != nil {
@@ -108,116 +130,72 @@ func EnforceDataQuotas() {
 		return
 	}
 
-	// Consolidar consumo de v4 y v6
 	usageData := make(map[string]float64)
-	collectUsage("iptables", usageData)
-	collectUsage("ip6tables", usageData)
+	collectAllUsage("iptables", usageData)
+	collectAllUsage("ip6tables", usageData)
 
 	for user, gbUsed := range usageData {
 		limit, exists := limits[user]
 		if exists && gbUsed >= limit {
 			// BLOQUEO
-			// 1. Matar procesos quirúrgicamente
 			pids, _ := GetUserProcesses(user)
 			for _, pid := range pids {
 				exec.Command("kill", "-9", pid).Run()
 			}
-
+			// Re-aplicar limpieza y bloqueo REJECT
+			cleanUserRules(user)
 			blockComment := "BLOCKED_" + user
-			// Borrar reglas ACCEPT
-			exec.Command("iptables", "-D", "OUTPUT", "-m", "owner", "--uid-owner", user, "-m", "comment", "--comment", "QUOTA_"+user, "-j", "ACCEPT").Run()
-			exec.Command("ip6tables", "-D", "OUTPUT", "-m", "owner", "--uid-owner", user, "-m", "comment", "--comment", "QUOTA_"+user, "-j", "ACCEPT").Run()
+			exec.Command("iptables", "-I", "OUTPUT", "-m", "owner", "--uid-owner", user, "-m", "comment", "--comment", blockComment, "-j", "REJECT").Run()
+			exec.Command("ip6tables", "-I", "OUTPUT", "-m", "owner", "--uid-owner", user, "-m", "comment", "--comment", blockComment, "-j", "REJECT").Run()
+		}
+	}
+}
 
-			// Insertar REJECT v4
-			if err := exec.Command("iptables", "-C", "OUTPUT", "-m", "owner", "--uid-owner", user, "-j", "REJECT").Run(); err != nil {
-				exec.Command("iptables", "-I", "OUTPUT", "-m", "owner", "--uid-owner", user, "-m", "comment", "--comment", blockComment, "-j", "REJECT").Run()
+func collectAllUsage(cmd string, data map[string]float64) {
+	// Recolectar de OUTPUT e INPUT
+	chains := []string{"OUTPUT", "INPUT"}
+	for _, chain := range chains {
+		out, err := exec.Command(cmd, "-nvx", "-L", chain).Output()
+		if err != nil {
+			continue
+		}
+		lines := strings.Split(string(out), "\n")
+		for _, line := range lines {
+			if !strings.Contains(line, "QUOTA_") {
+				continue
 			}
-			// Insertar REJECT v6
-			if err := exec.Command("ip6tables", "-C", "OUTPUT", "-m", "owner", "--uid-owner", user, "-j", "REJECT").Run(); err != nil {
-				exec.Command("ip6tables", "-I", "OUTPUT", "-m", "owner", "--uid-owner", user, "-m", "comment", "--comment", blockComment, "-j", "REJECT").Run()
+			fields := strings.Fields(line)
+			if len(fields) < 2 {
+				continue
 			}
+			bytesUsed, _ := strconv.ParseUint(fields[1], 10, 64)
+
+			// Determinar usuario
+			user := ""
+			if strings.Contains(line, "IN_QUOTA_") {
+				parts := strings.Split(line, "IN_QUOTA_")
+				user = strings.Fields(parts[1])[0]
+			} else {
+				parts := strings.Split(line, "QUOTA_")
+				user = strings.Fields(parts[1])[0]
+			}
+			user = strings.Trim(user, "*/ ")
+			data[user] += float64(bytesUsed) / 1024 / 1024 / 1024
 		}
 	}
 }
 
-func collectUsage(cmd string, data map[string]float64) {
-	out, err := exec.Command(cmd, "-nvx", "-L", "OUTPUT").Output()
-	if err != nil {
-		return
-	}
-	lines := strings.Split(string(out), "\n")
-	for _, line := range lines {
-		if !strings.Contains(line, "QUOTA_") {
-			continue
-		}
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
-			continue
-		}
-		bytesUsed, _ := strconv.ParseUint(fields[1], 10, 64)
-		parts := strings.Split(line, "QUOTA_")
-		if len(parts) < 2 {
-			continue
-		}
-		user := strings.Fields(parts[1])[0]
-		user = strings.Trim(user, "*/ ")
-		data[user] += float64(bytesUsed) / 1024 / 1024 / 1024
-	}
-}
-
-// ResetDataQuota limpia los contadores del usuario borrando e insertando la regla de Iptables
-func ResetDataQuota(username string) error {
-	limit := 0.0
-	if b, err := ioutil.ReadFile(fmt.Sprintf("/etc/ssh_limits/%s.limit", username)); err == nil {
-		limit, _ = strconv.ParseFloat(strings.TrimSpace(string(b)), 64)
-	}
-	return SetDataQuota(username, limit)
-}
-
-// GetUserConsumption lee iptables (v4 y v6) y retorna los GB totales
 func GetUserConsumption(username string) (float64, string, error) {
 	limitStr := "Infinito"
 	if b, err := ioutil.ReadFile(fmt.Sprintf("/etc/ssh_limits/%s.limit", username)); err == nil {
 		limitStr = strings.TrimSpace(string(b))
 	}
 
-	totalGB := 0.0
-	// v4
-	if out, err := exec.Command("iptables", "-nvx", "-L", "OUTPUT").Output(); err == nil {
-		totalGB += parseUsageFromOutput(string(out), username)
-	}
-	// v6
-	if out, err := exec.Command("ip6tables", "-nvx", "-L", "OUTPUT").Output(); err == nil {
-		totalGB += parseUsageFromOutput(string(out), username)
-	}
+	usageData := make(map[string]float64)
+	collectAllUsage("iptables", usageData)
+	collectAllUsage("ip6tables", usageData)
 
-	return totalGB, limitStr, nil
-}
-
-func parseUsageFromOutput(output, username string) float64 {
-	uid := ""
-	outUID, err := exec.Command("id", "-u", username).Output()
-	if err == nil {
-		uid = strings.TrimSpace(string(outUID))
-	}
-
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
-		// Buscamos coincidencia por comentario QUOTA_ o por owner UID
-		isOwner := strings.Contains(line, "owner") && (uid != "" && strings.Contains(line, uid))
-		isComment := strings.Contains(line, "QUOTA_"+username)
-
-		if isOwner || isComment {
-			fields := strings.Fields(line)
-			if len(fields) >= 2 {
-				b, err := strconv.ParseUint(fields[1], 10, 64)
-				if err == nil {
-					return float64(b) / 1024 / 1024 / 1024
-				}
-			}
-		}
-	}
-	return 0
+	return usageData[username], limitStr, nil
 }
 
 // CountOnlineConnections devuelve el número total de conexiones SSH y Dropbear por usuario
