@@ -93,7 +93,6 @@ func handleListAdmins(c tele.Context, b *tele.Bot) error {
 func handleAddAdminPrompt(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
 	UserSteps[chatID] = "awaiting_vpn_admin_id"
-	LastBotMsg[chatID] = c.Message()
 
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "menu_admins")))
@@ -130,7 +129,6 @@ func handleDelAdminExec(c tele.Context, b *tele.Bot) error {
 func handleEditExtraInfoPrompt(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
 	UserSteps[chatID] = "awaiting_vpn_extrainfo"
-	LastBotMsg[chatID] = c.Message()
 
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "menu_admins")))
@@ -141,7 +139,6 @@ func handleEditExtraInfoPrompt(c tele.Context, b *tele.Bot) error {
 func handleEditCloudflarePrompt(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
 	UserSteps[chatID] = "awaiting_vpn_cloudflare"
-	LastBotMsg[chatID] = c.Message()
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "menu_admins")))
 	return SafeEditCtx(c, b, "☁️ <b>Configurar Dominio Cloudflare</b>\n\n✏️ <i>Escribe el dominio :</i>\n\nEjemplo: <code>mi.host.com</code>", markup)
@@ -150,7 +147,6 @@ func handleEditCloudflarePrompt(c tele.Context, b *tele.Bot) error {
 func handleEditCloudfrontPrompt(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
 	UserSteps[chatID] = "awaiting_vpn_cloudfront"
-	LastBotMsg[chatID] = c.Message()
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "menu_admins")))
 	return SafeEditCtx(c, b, "🚀 <b>Configurar Dominio Cloudfront</b>\n\n✏️ <i>Escribe el dominio:</i>\n\nEjemplo: <code>xyz123.cloudfront.net</code>", markup)
@@ -159,7 +155,6 @@ func handleEditCloudfrontPrompt(c tele.Context, b *tele.Bot) error {
 func handleEditBannerPrompt(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
 	UserSteps[chatID] = "awaiting_vpn_ssh_banner"
-	LastBotMsg[chatID] = c.Message()
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "menu_admins")))
 	return SafeEditCtx(c, b, "📜 <b>Configurar Banner SSH</b>\n\n✏️ <i>Escribe el texto del banner (admite HTML básico):</i>\n\nEsto se mostrará al conectar por SSH.", markup)

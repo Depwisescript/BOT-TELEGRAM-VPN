@@ -175,7 +175,6 @@ func handleMenuEliminar(c tele.Context, b *tele.Bot) error {
 
 	// Cambiar estado a espera de texto
 	UserSteps[chatID] = "awaiting_delete_user_selection"
-	LastBotMsg[chatID] = c.Message()
 
 	return SafeEditCtx(c, b, res, markup)
 }

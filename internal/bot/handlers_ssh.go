@@ -223,7 +223,6 @@ func handleMenuEditar(c tele.Context, b *tele.Bot) error {
 	res += "━━━━━━━━━━━━━━\n✏️ Escribe el nombre del usuario:"
 	UserSteps[chatID] = "awaiting_edit_user_selection"
 	TempData[chatID] = make(map[string]string)
-	LastBotMsg[chatID] = c.Message()
 	return c.Edit(res, markup, tele.ModeHTML)
 }
 
@@ -328,7 +327,6 @@ func HandleEditPass(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
 	user := TempData[chatID]["edit_target"]
 	UserSteps[chatID] = "awaiting_edit_pass_val"
-	LastBotMsg[chatID] = c.Message()
 	markupCancel := &tele.ReplyMarkup{}
 	markupCancel.Inline(markupCancel.Row(markupCancel.Data("❌ Cancelar", "cancelar_accion")))
 	return c.Edit(fmt.Sprintf("🔑 <b>Cambiando Pass:</b> <code>%s</code>\n✏️ Nueva pass:", user), markupCancel, tele.ModeHTML)
@@ -338,7 +336,6 @@ func HandleEditRenew(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
 	user := TempData[chatID]["edit_target"]
 	UserSteps[chatID] = "awaiting_edit_renew_val"
-	LastBotMsg[chatID] = c.Message()
 	markupCancel := &tele.ReplyMarkup{}
 	markupCancel.Inline(markupCancel.Row(markupCancel.Data("❌ Cancelar", "cancelar_accion")))
 	return c.Edit(fmt.Sprintf("📅 <b>Renovando:</b> <code>%s</code>\n✏️ ¿Días extra?", user), markupCancel, tele.ModeHTML)
@@ -348,7 +345,6 @@ func HandleEditLimit(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
 	user := TempData[chatID]["edit_target"]
 	UserSteps[chatID] = "awaiting_edit_limit_val"
-	LastBotMsg[chatID] = c.Message()
 	markupCancel := &tele.ReplyMarkup{}
 	markupCancel.Inline(markupCancel.Row(markupCancel.Data("❌ Cancelar", "cancelar_accion")))
 	return c.Edit(fmt.Sprintf("📱 <b>Límite:</b> <code>%s</code>\n✏️ Nuevo límite (0=inf):", user), markupCancel, tele.ModeHTML)

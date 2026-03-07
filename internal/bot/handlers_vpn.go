@@ -57,7 +57,6 @@ func handleMenuBroadcast(c tele.Context, b *tele.Bot) error {
 	}
 
 	UserSteps[chatID] = "awaiting_vpn_broadcast"
-	LastBotMsg[chatID] = c.Message()
 
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "back_main")))
@@ -242,7 +241,6 @@ func handleInstallSlowDNS(c tele.Context, b *tele.Bot, lastMsg *tele.Message) er
 	chatID := c.Chat().ID
 	UserSteps[chatID] = "awaiting_vpn_slowdns_domain"
 	TempData[chatID] = make(map[string]string)
-	LastBotMsg[chatID] = lastMsg
 
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "cancelar_accion")))
@@ -321,7 +319,6 @@ func handleInstallBadVPN(c tele.Context, b *tele.Bot, lastMsg *tele.Message) err
 func handleInstallFalcon(c tele.Context, b *tele.Bot, lastMsg *tele.Message) error {
 	chatID := c.Chat().ID
 	UserSteps[chatID] = "awaiting_vpn_falcon_port"
-	LastBotMsg[chatID] = lastMsg
 
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "cancelar_accion")))
@@ -333,7 +330,6 @@ func handleInstallFalcon(c tele.Context, b *tele.Bot, lastMsg *tele.Message) err
 func handleInstallSSL(c tele.Context, b *tele.Bot, lastMsg *tele.Message) error {
 	chatID := c.Chat().ID
 	UserSteps[chatID] = "awaiting_vpn_ssl_port"
-	LastBotMsg[chatID] = lastMsg
 
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "cancelar_accion")))
@@ -345,7 +341,6 @@ func handleInstallSSL(c tele.Context, b *tele.Bot, lastMsg *tele.Message) error 
 func handleInstallDropbear(c tele.Context, b *tele.Bot, lastMsg *tele.Message) error {
 	chatID := c.Chat().ID
 	UserSteps[chatID] = "awaiting_vpn_dropbear_port"
-	LastBotMsg[chatID] = lastMsg
 
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "cancelar_accion")))
@@ -357,7 +352,6 @@ func handleInstallDropbear(c tele.Context, b *tele.Bot, lastMsg *tele.Message) e
 func handleInstallProxyDT(c tele.Context, b *tele.Bot, lastMsg *tele.Message) error {
 	chatID := c.Chat().ID
 	UserSteps[chatID] = "awaiting_vpn_proxydt_port"
-	LastBotMsg[chatID] = lastMsg
 
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "cancelar_accion")))
