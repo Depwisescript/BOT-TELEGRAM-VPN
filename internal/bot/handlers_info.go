@@ -173,8 +173,8 @@ func handleMenuEliminar(c tele.Context, b *tele.Bot) error {
 	res += "✏️ <b>Escribe el Nombre o Password</b> de la cuenta que deseas eliminar exactamente como aparece arriba:"
 
 	// Cambiar estado a espera de texto
-	userSteps[chatID] = "awaiting_delete_user_selection"
-	lastBotMsg[chatID] = c.Message()
+	UserSteps[chatID] = "awaiting_delete_user_selection"
+	LastBotMsg[chatID] = c.Message()
 
 	return c.Edit(res, markup, tele.ModeHTML)
 }

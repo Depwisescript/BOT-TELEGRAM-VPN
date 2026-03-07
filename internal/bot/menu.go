@@ -15,6 +15,11 @@ import (
 var (
 	botToken   = os.Getenv("BOT_TOKEN")
 	superAdmin = os.Getenv("SUPER_ADMIN")
+
+	// Estado Global de Conversación
+	UserSteps  = make(map[int64]string)
+	TempData   = make(map[int64]map[string]string)
+	LastBotMsg = make(map[int64]*tele.Message)
 )
 
 // StartBot inicializa el bot de Telegram y registra los handlers
@@ -202,6 +207,28 @@ func isAdmin(chatID int64) bool {
 func isSuperAdminID(chatID int64) bool {
 	sa, _ := strconv.ParseInt(superAdmin, 10, 64)
 	return chatID == sa
+}
+
+// SafeEdit intenta editar un mensaje, y si falla lo envía nuevo
+func SafeEdit(chatID int64, b *tele.Bot, msg *tele.Message, text string, markup *tele.ReplyMarkup) (*tele.Message, error) {
+	var newMsg *tele.Message
+	var err error
+
+	if msg != nil {
+		newMsg, err = b.Edit(msg, text, markup, tele.ModeHTML)
+	} else {
+		err = fmt.Errorf("nil message")
+	}
+
+	if err != nil {
+		// Fallback: enviar nuevo
+		newMsg, err = b.Send(tele.ChatID(chatID), text, markup, tele.ModeHTML)
+	}
+
+	if err == nil {
+		LastBotMsg[chatID] = newMsg
+	}
+	return newMsg, err
 }
 
 func handleStart(c tele.Context, b *tele.Bot) error {
