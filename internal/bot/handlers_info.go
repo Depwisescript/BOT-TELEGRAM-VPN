@@ -7,6 +7,7 @@ import (
 
 	"github.com/Depwisescript/BOT-TELEGRAM-VPN/internal/db"
 	"github.com/Depwisescript/BOT-TELEGRAM-VPN/internal/sys"
+	"github.com/Depwisescript/BOT-TELEGRAM-VPN/internal/vpn"
 	tele "gopkg.in/telebot.v3"
 )
 
@@ -177,4 +178,55 @@ func handleMenuEliminar(c tele.Context, b *tele.Bot) error {
 	LastBotMsg[chatID] = c.Message()
 
 	return SafeEditCtx(c, b, res, markup)
+}
+
+func processDeleteSteps(text string, chatID int64, c tele.Context, b *tele.Bot) error {
+	data, _ := db.Load()
+	target := strings.TrimSpace(text)
+	sa, _ := strconv.ParseInt(superAdmin, 10, 64)
+	isSA := chatID == sa
+
+	lastMsg := LastBotMsg[chatID]
+
+	// 1. Identificar si es SSH
+	if ownerID, exists := data.SSHOwners[target]; exists {
+		if !isSA && ownerID != fmt.Sprintf("%d", chatID) {
+			_, err := SafeEdit(chatID, b, lastMsg, "⛔ <b>No tienes permiso para eliminar este usuario SSH.</b>", nil)
+			return err
+		}
+
+		_ = sys.DeleteSSHUser(target)
+		db.Update(func(d *db.ConfigData) error {
+			delete(d.SSHOwners, target)
+			delete(d.SSHHandles, target)
+			return nil
+		})
+
+		_ = c.Respond(&tele.CallbackResponse{Text: "Usuario SSH eliminado.", ShowAlert: false})
+		return handleMenuEliminar(c, b)
+	}
+
+	// 2. Identificar si es ZiVPN (usamos el password como id)
+	if ownerID, exists := data.ZivpnOwners[target]; exists {
+		if !isSA && ownerID != fmt.Sprintf("%d", chatID) {
+			_, err := SafeEdit(chatID, b, lastMsg, "⛔ <b>No tienes permiso para eliminar este acceso ZiVPN.</b>", nil)
+			return err
+		}
+
+		_ = vpn.RemoveZivpnUser(target)
+		db.Update(func(d *db.ConfigData) error {
+			delete(d.ZivpnUsers, target)
+			delete(d.ZivpnOwners, target)
+			delete(d.ZivpnHandles, target)
+			delete(d.ZivpnLastActive, target)
+			return nil
+		})
+
+		_ = c.Respond(&tele.CallbackResponse{Text: "Acceso ZiVPN eliminado.", ShowAlert: false})
+		return handleMenuEliminar(c, b)
+	}
+
+	// 3. No encontrado
+	_, err := SafeEdit(chatID, b, lastMsg, "❌ <b>Cuenta no encontrada o no tienes acceso.</b>\n\nVerifica el nombre o password e intenta de nuevo:", nil)
+	return err
 }

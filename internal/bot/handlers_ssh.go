@@ -189,6 +189,9 @@ func handleTextInputs(c tele.Context, b *tele.Bot) error {
 			SafeEdit(chatID, b, lastMsg, fmt.Sprintf("✅ Límite cambiado para %s", user), markup)
 		}
 		return nil
+
+	case "awaiting_delete_user_selection":
+		return processDeleteSteps(text, chatID, c, b)
 	}
 
 	return nil
