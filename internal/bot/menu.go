@@ -221,7 +221,11 @@ func SafeEdit(chatID int64, b *tele.Bot, msg *tele.Message, text string, markup 
 	}
 
 	if err != nil {
-		// Fallback: enviar nuevo
+		// Fallback: tratar de borrar el viejo para no dejar spam
+		if msg != nil {
+			b.Delete(msg)
+		}
+		// Enviar nuevo
 		newMsg, err = b.Send(tele.ChatID(chatID), text, markup, tele.ModeHTML)
 	}
 

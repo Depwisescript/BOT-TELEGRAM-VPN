@@ -34,13 +34,17 @@ func handleCrearZivpn(c tele.Context, b *tele.Bot) error {
 }
 
 func finishZivpnCreation(c tele.Context, password string, days int, chatID int64, b *tele.Bot, lastMsg *tele.Message) error {
-	b.Edit(lastMsg, "⏳ <i>Registrando acceso en ZiVPN...</i>", tele.ModeHTML)
+	// Bloquear estado inmediatamente para evitar spam/carreras
+	delete(UserSteps, chatID)
+	delete(LastBotMsg, chatID)
+
+	SafeEdit(chatID, b, lastMsg, "⏳ <i>Registrando acceso en ZiVPN...</i>", nil)
 
 	err := vpn.AddZivpnUser(password)
 	if err != nil {
 		markup := &tele.ReplyMarkup{}
 		markup.Inline(markup.Row(markup.Data("🔙 Volver", "back_main")))
-		_, errEdit := b.Edit(lastMsg, fmt.Sprintf("❌ <b>Error al crear acceso ZiVPN:</b>\n<pre>%v</pre>", err), markup, tele.ModeHTML)
+		_, errEdit := SafeEdit(chatID, b, lastMsg, fmt.Sprintf("❌ <b>Error al crear acceso ZiVPN:</b>\n<pre>%v</pre>", err), markup)
 		return errEdit
 	}
 
@@ -90,7 +94,7 @@ func finishZivpnCreation(c tele.Context, password string, days int, chatID int64
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_protocols")))
 
-	_, err = b.Edit(lastMsg, res, markup, tele.ModeHTML)
+	_, err = SafeEdit(chatID, b, lastMsg, res, markup)
 	return err
 }
 
@@ -123,8 +127,6 @@ func processZivpnSteps(step string, text string, chatID int64, c tele.Context, b
 			days = 7
 		}
 
-		delete(UserSteps, chatID)
-		delete(LastBotMsg, chatID)
 		return finishZivpnCreation(c, password, days, chatID, b, lastMsg)
 
 	case "awaiting_zivpn_days":
@@ -135,8 +137,6 @@ func processZivpnSteps(step string, text string, chatID int64, c tele.Context, b
 		}
 
 		password := TempData[chatID]["zivpn_pass"]
-		delete(UserSteps, chatID)
-		delete(LastBotMsg, chatID)
 		return finishZivpnCreation(c, password, days, chatID, b, lastMsg)
 	}
 
