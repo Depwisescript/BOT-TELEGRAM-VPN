@@ -38,6 +38,7 @@ func handleStartScanPrompt(c tele.Context, b *tele.Bot) error {
 }
 
 func processScannerSteps(step string, text string, chatID int64, c tele.Context, b *tele.Bot, lastMsg *tele.Message) error {
+	_ = c.Delete()
 	if step != "awaiting_scanner_domain" {
 		return nil
 	}

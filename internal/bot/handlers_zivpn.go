@@ -92,7 +92,7 @@ func finishZivpnCreation(c tele.Context, password string, days int, chatID int64
 	res += "👨‍💻 <b>Dev:</b> @Dan3651\n"
 
 	markup := &tele.ReplyMarkup{}
-	markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_protocols")))
+	markup.Inline(markup.Row(markup.Data("🔙 Volver", "back_main")))
 
 	_, err = SafeEdit(chatID, b, lastMsg, res, markup)
 	return err

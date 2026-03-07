@@ -55,6 +55,9 @@ func handleTextInputs(c tele.Context, b *tele.Bot) error {
 		return processScannerSteps(step, text, chatID, c, b, lastMsg)
 	}
 
+	// Borrar el mensaje del usuario para mantener el chat limpio
+	_ = c.Delete()
+
 	lastMsg, _ := LastBotMsg[chatID]
 	textLower := strings.ToLower(strings.TrimSpace(text))
 

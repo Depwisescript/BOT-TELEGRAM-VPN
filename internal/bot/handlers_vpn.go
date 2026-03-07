@@ -368,6 +368,7 @@ func handleInstallProxyDT(c tele.Context, b *tele.Bot, lastMsg *tele.Message) er
 
 // Interceptor secuencial para los módulos VPN
 func processVPNSteps(step string, text string, chatID int64, c tele.Context, b *tele.Bot, lastMsg *tele.Message) error {
+	_ = c.Delete()
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_protocols")))
 
