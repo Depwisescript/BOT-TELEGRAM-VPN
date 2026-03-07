@@ -88,7 +88,7 @@ func handleInfo(c tele.Context, b *tele.Bot) error {
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("🔙 Volver", "back_main")))
 
-	return c.Edit(info, markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, info, markup)
 }
 
 func handleMenuOnline(c tele.Context, b *tele.Bot) error {
@@ -118,7 +118,7 @@ func handleMenuOnline(c tele.Context, b *tele.Bot) error {
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("🔙 Volver", "back_main")))
 
-	return c.Edit(res, markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, res, markup)
 }
 
 // Interceptamos opciones administrativas de borrado
@@ -176,5 +176,5 @@ func handleMenuEliminar(c tele.Context, b *tele.Bot) error {
 	UserSteps[chatID] = "awaiting_delete_user_selection"
 	LastBotMsg[chatID] = c.Message()
 
-	return c.Edit(res, markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, res, markup)
 }

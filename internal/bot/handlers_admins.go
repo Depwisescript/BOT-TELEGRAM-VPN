@@ -61,7 +61,7 @@ func handleMenuAdmins(c tele.Context, b *tele.Bot) error {
 	texto += "━━━━━━━━━━━━━━\n"
 	texto += "<i>Selecciona una opción avanzada:</i>"
 
-	return c.Edit(texto, markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, texto, markup)
 }
 
 func handleTogglePublicAccess(c tele.Context, b *tele.Bot) error {
@@ -87,7 +87,7 @@ func handleListAdmins(c tele.Context, b *tele.Bot) error {
 
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_admins")))
-	return c.Edit(res, markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, res, markup)
 }
 
 func handleAddAdminPrompt(c tele.Context, b *tele.Bot) error {
@@ -98,7 +98,7 @@ func handleAddAdminPrompt(c tele.Context, b *tele.Bot) error {
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "menu_admins")))
 
-	return c.Edit("➕ <b>Agregar Nuevo Administrador</b>\n\n✏️ <i>Escribe el ID numérico del usuario de Telegram:</i>\n\nEjemplo: <code>123456789</code>", markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, "➕ <b>Agregar Nuevo Administrador</b>\n\n✏️ <i>Escribe el ID numérico del usuario de Telegram:</i>\n\nEjemplo: <code>123456789</code>", markup)
 }
 
 func handleDelAdminMenu(c tele.Context, b *tele.Bot) error {
@@ -115,7 +115,7 @@ func handleDelAdminMenu(c tele.Context, b *tele.Bot) error {
 	rows = append(rows, markup.Row(markup.Data("🔙 Volver", "menu_admins")))
 	markup.Inline(rows...)
 
-	return c.Edit("➖ <b>Quitar Administrador</b>\n\nSelecciona a quién deseas retirar los permisos:", markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, "➖ <b>Quitar Administrador</b>\n\nSelecciona a quién deseas retirar los permisos:", markup)
 }
 
 func handleDelAdminExec(c tele.Context, b *tele.Bot) error {
@@ -135,7 +135,7 @@ func handleEditExtraInfoPrompt(c tele.Context, b *tele.Bot) error {
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "menu_admins")))
 
-	return c.Edit("📝 <b>Editar Información Extra</b>\n\nEsta información aparecerá en el menú /info.\n\n✏️ <i>Escribe el nuevo texto (soporta HTML):</i>", markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, "📝 <b>Editar Información Extra</b>\n\nEsta información aparecerá en el menú /info.\n\n✏️ <i>Escribe el nuevo texto (soporta HTML):</i>", markup)
 }
 
 func handleEditCloudflarePrompt(c tele.Context, b *tele.Bot) error {
@@ -144,7 +144,7 @@ func handleEditCloudflarePrompt(c tele.Context, b *tele.Bot) error {
 	LastBotMsg[chatID] = c.Message()
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "menu_admins")))
-	return c.Edit("☁️ <b>Configurar Dominio Cloudflare</b>\n\n✏️ <i>Escribe el dominio :</i>\n\nEjemplo: <code>mi.host.com</code>", markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, "☁️ <b>Configurar Dominio Cloudflare</b>\n\n✏️ <i>Escribe el dominio :</i>\n\nEjemplo: <code>mi.host.com</code>", markup)
 }
 
 func handleEditCloudfrontPrompt(c tele.Context, b *tele.Bot) error {
@@ -153,7 +153,7 @@ func handleEditCloudfrontPrompt(c tele.Context, b *tele.Bot) error {
 	LastBotMsg[chatID] = c.Message()
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "menu_admins")))
-	return c.Edit("🚀 <b>Configurar Dominio Cloudfront</b>\n\n✏️ <i>Escribe el dominio:</i>\n\nEjemplo: <code>xyz123.cloudfront.net</code>", markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, "🚀 <b>Configurar Dominio Cloudfront</b>\n\n✏️ <i>Escribe el dominio:</i>\n\nEjemplo: <code>xyz123.cloudfront.net</code>", markup)
 }
 
 func handleEditBannerPrompt(c tele.Context, b *tele.Bot) error {
@@ -162,7 +162,7 @@ func handleEditBannerPrompt(c tele.Context, b *tele.Bot) error {
 	LastBotMsg[chatID] = c.Message()
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "menu_admins")))
-	return c.Edit("📜 <b>Configurar Banner SSH</b>\n\n✏️ <i>Escribe el texto del banner (admite HTML básico):</i>\n\nEsto se mostrará al conectar por SSH.", markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, "📜 <b>Configurar Banner SSH</b>\n\n✏️ <i>Escribe el texto del banner (admite HTML básico):</i>\n\nEsto se mostrará al conectar por SSH.", markup)
 }
 
 func handleResetHistoryConfirm(c tele.Context, b *tele.Bot) error {
@@ -171,7 +171,7 @@ func handleResetHistoryConfirm(c tele.Context, b *tele.Bot) error {
 	btnNo := markup.Data("❌ No, Cancelar", "menu_admins")
 	markup.Inline(markup.Row(btnYes, btnNo))
 
-	return c.Edit("⚠️ <b>¿Estás seguro de limpiar el historial?</b>\n\nSe borrarán todos los IDs de usuarios registrados (el broadcast ya no les llegará hasta que vuelvan a iniciar el bot).", markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, "⚠️ <b>¿Estás seguro de limpiar el historial?</b>\n\nSe borrarán todos los IDs de usuarios registrados (el broadcast ya no les llegará hasta que vuelvan a iniciar el bot).", markup)
 }
 
 func handleResetHistoryExec(c tele.Context, b *tele.Bot) error {
@@ -188,7 +188,7 @@ func handleServerRebootConfirm(c tele.Context, b *tele.Bot) error {
 	btnNo := markup.Data("🔙 Cancelar", "menu_admins")
 	markup.Inline(markup.Row(btnYes, btnNo))
 
-	return c.Edit("🚨 <b>ADVERTENCIA: REINICIO DEL SERVIDOR</b>\n\n¿Estás seguro de que quieres reiniciar la VPS? Todas las conexiones actuales se cortarán.", markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, "🚨 <b>ADVERTENCIA: REINICIO DEL SERVIDOR</b>\n\n¿Estás seguro de que quieres reiniciar la VPS? Todas las conexiones actuales se cortarán.", markup)
 }
 
 func handleServerRebootExec(c tele.Context, b *tele.Bot) error {

@@ -14,7 +14,7 @@ func handleProtocolDiag(c tele.Context, b *tele.Bot) error {
 	report := vpn.GetSystemReport()
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_protocols")))
-	return c.Edit(report, markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, report, markup)
 }
 
 // Interceptar "Protocolos" para ver e Iniciar SlowDNS, Zivpn o BadVPN
@@ -45,7 +45,7 @@ func handleMenuProtocols(c tele.Context, b *tele.Bot) error {
 	texto := "⚙️ <b>Gestor de Protocolos VPN</b>\n\n"
 	texto += "<i>Selecciona un protocolo para ver las opciones de instalación o desinstalación.</i>"
 
-	return c.Edit(texto, markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, texto, markup)
 }
 
 // Mover handleMenuAdmins a handlers_admins.go
@@ -62,7 +62,7 @@ func handleMenuBroadcast(c tele.Context, b *tele.Bot) error {
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "back_main")))
 
-	return c.Edit("📢 <b>Mensaje Global (Broadcast)</b>\n\n✏️ <i>Escribe el mensaje que deseas enviar a todos los usuarios:</i>\n\nPuedes usar etiquetas HTML básicas como &lt;b&gt;, &lt;i&gt;, etc.", markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, "📢 <b>Mensaje Global (Broadcast)</b>\n\n✏️ <i>Escribe el mensaje que deseas enviar a todos los usuarios:</i>\n\nPuedes usar etiquetas HTML básicas como &lt;b&gt;, &lt;i&gt;, etc.", markup)
 }
 
 func handleInstallScannerDeps(c tele.Context, b *tele.Bot) error {
@@ -71,17 +71,17 @@ func handleInstallScannerDeps(c tele.Context, b *tele.Bot) error {
 		return c.Send("⛔ Solo el SuperAdmin puede realizar esta instalación manual.", tele.ModeHTML)
 	}
 
-	c.Edit("⏳ <b>Instalando Herramientas de Escaneo...</b>\n\n<i>Esto instalará assetfinder y httpx. Por favor espera...</i>", tele.ModeHTML)
+	SafeEditCtx(c, b, "⏳ <b>Instalando Herramientas de Escaneo...</b>\n\n<i>Esto instalará assetfinder y httpx. Por favor espera...</i>", nil)
 
 	err := sys.EnsureScannerDeps()
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_protocols")))
 
 	if err != nil {
-		return c.Edit(fmt.Sprintf("❌ <b>Error en la instalación:</b>\n<pre>%v</pre>", err), markup, tele.ModeHTML)
+		return SafeEditCtx(c, b, fmt.Sprintf("❌ <b>Error en la instalación:</b>\n<pre>%v</pre>", err), markup)
 	}
 
-	return c.Edit("✅ <b>Herramientas de Escaneo Instaladas y Vinculadas Correctamente.</b>\n\nYa puedes usar el botón 🔍 <b>Escaner</b> del menú principal.", markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, "✅ <b>Herramientas de Escaneo Instaladas y Vinculadas Correctamente.</b>\n\nYa puedes usar el botón 🔍 <b>Escaner</b> del menú principal.", markup)
 }
 
 // Sub-Menús de Protocolos
@@ -100,7 +100,7 @@ func handleSubMenuSlowDNS(c tele.Context, b *tele.Bot) error {
 	markup.Inline(markup.Row(btnInst), markup.Row(btnUninst), markup.Row(btnBack))
 
 	texto := fmt.Sprintf("🐢 <b>Gestión de SlowDNS</b>\n\n📊 <b>Estado:</b> %s\n🌍 <b>NS:</b> %s\n\n¿Qué deseas hacer?", status, data.SlowDNS.NS)
-	return c.Edit(texto, markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, texto, markup)
 }
 
 func handleSubMenuZiVPN(c tele.Context, b *tele.Bot) error {
@@ -118,7 +118,7 @@ func handleSubMenuZiVPN(c tele.Context, b *tele.Bot) error {
 	markup.Inline(markup.Row(btnInst), markup.Row(btnUninst), markup.Row(btnBack))
 
 	texto := fmt.Sprintf("🛰️ <b>Gestión de ZiVPN</b>\n\n📊 <b>Estado:</b> %s\n\n¿Qué deseas hacer?", status)
-	return c.Edit(texto, markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, texto, markup)
 }
 
 func handleSubMenuUDPCustom(c tele.Context, b *tele.Bot) error {
@@ -136,7 +136,7 @@ func handleSubMenuUDPCustom(c tele.Context, b *tele.Bot) error {
 	markup.Inline(markup.Row(btnInst), markup.Row(btnUninst), markup.Row(btnBack))
 
 	texto := fmt.Sprintf("📡 <b>Gestión de UDP Custom (HTTP Custom)</b>\n\n📊 <b>Estado:</b> %s\n\nEste protocolo es el que utiliza específicamente la aplicación <b>HTTP Custom</b> en su opción 'UDP Custom'.\n\n¿Qué deseas hacer?", status)
-	return c.Edit(texto, markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, texto, markup)
 }
 
 func handleSubMenuBadVPN(c tele.Context, b *tele.Bot) error {
@@ -154,18 +154,17 @@ func handleSubMenuBadVPN(c tele.Context, b *tele.Bot) error {
 	markup.Inline(markup.Row(btnInst), markup.Row(btnUninst), markup.Row(btnBack))
 
 	texto := fmt.Sprintf("🎮 <b>Gestión de BadVPN</b>\n\n📊 <b>Estado:</b> %s\n\n¿Qué deseas hacer?", status)
-	return c.Edit(texto, markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, texto, markup)
 }
 
 func handleSubMenuFalcon(c tele.Context, b *tele.Bot) error {
-	// ... similar logic
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(
 		markup.Row(markup.Data("📥 Instalar", "install_falcon")),
-		markup.Row(markup.Data("🗑️ Desinstalar", "uninstall_falcon")),
+		markup.Row(markup.Data("🗑️ Desinstall", "uninstall_falcon")),
 		markup.Row(markup.Data("🔙 Volver", "menu_protocols")),
 	)
-	return c.Edit("🦅 <b>Gestión de Falcon Proxy</b>\n\n¿Qué deseas hacer?", markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, "🦅 <b>Gestión de Falcon Proxy</b>\n\n¿Qué deseas hacer?", markup)
 }
 
 func handleSubMenuSSL(c tele.Context, b *tele.Bot) error {
@@ -175,7 +174,7 @@ func handleSubMenuSSL(c tele.Context, b *tele.Bot) error {
 		markup.Row(markup.Data("🗑️ Desinstalar", "uninstall_ssl")),
 		markup.Row(markup.Data("🔙 Volver", "menu_protocols")),
 	)
-	return c.Edit("📜 <b>Gestión de SSL Tunnel</b>\n\n¿Qué deseas hacer?", markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, "📜 <b>Gestión de SSL Tunnel</b>\n\n¿Qué deseas hacer?", markup)
 }
 
 func handleSubMenuDropbear(c tele.Context, b *tele.Bot) error {
@@ -185,7 +184,7 @@ func handleSubMenuDropbear(c tele.Context, b *tele.Bot) error {
 		markup.Row(markup.Data("🗑️ Desinstalar", "uninstall_dropbear")),
 		markup.Row(markup.Data("🔙 Volver", "menu_protocols")),
 	)
-	return c.Edit("🐻 <b>Gestión de Dropbear</b>\n\n¿Qué deseas hacer?", markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, "🐻 <b>Gestión de Dropbear</b>\n\n¿Qué deseas hacer?", markup)
 }
 
 func handleSubMenuProxyDT(c tele.Context, b *tele.Bot) error {
@@ -195,12 +194,12 @@ func handleSubMenuProxyDT(c tele.Context, b *tele.Bot) error {
 		markup.Row(markup.Data("🗑️ Desinstalar", "uninstall_proxydt")),
 		markup.Row(markup.Data("🔙 Volver", "menu_protocols")),
 	)
-	return c.Edit("🌐 <b>Gestión de ProxyDT</b>\n\n¿Qué deseas hacer?", markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, "🌐 <b>Gestión de ProxyDT</b>\n\n¿Qué deseas hacer?", markup)
 }
 
 // Handlers de Desinstalación
 func handleUninstallProtocol(c tele.Context, b *tele.Bot, proto string) error {
-	c.Edit(fmt.Sprintf("⏳ <i>Desinstalando %s...</i>", proto), tele.ModeHTML)
+	SafeEditCtx(c, b, fmt.Sprintf("⏳ <i>Desinstalando %s...</i>", proto), nil)
 	var err error
 	data, _ := db.Load()
 

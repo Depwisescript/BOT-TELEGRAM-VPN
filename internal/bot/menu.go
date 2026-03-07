@@ -55,7 +55,7 @@ func StartBot() {
 
 	// Opciones del Menú Principal
 	b.Handle(&tele.Btn{Unique: "menu_crear"}, func(c tele.Context) error {
-		return c.Edit(menuCrearText(), menuCrearMarkup(), tele.ModeHTML)
+		return SafeEditCtx(c, b, menuCrearText(), menuCrearMarkup())
 	})
 	b.Handle(&tele.Btn{Unique: "menu_info"}, func(c tele.Context) error {
 		return handleInfo(c, b)
@@ -235,8 +235,25 @@ func SafeEdit(chatID int64, b *tele.Bot, msg *tele.Message, text string, markup 
 	return newMsg, err
 }
 
+// SafeEditCtx es un helper que facilita el uso de SafeEdit con tele.Context
+func SafeEditCtx(c tele.Context, b *tele.Bot, text string, markup *tele.ReplyMarkup) error {
+	var lastMsg *tele.Message
+	if c.Callback() != nil {
+		lastMsg = c.Message()
+	} else {
+		lastMsg = LastBotMsg[c.Chat().ID]
+	}
+
+	_, err := SafeEdit(c.Chat().ID, b, lastMsg, text, markup)
+	return err
+}
+
 func handleStart(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
+
+	// Limpiar cualquier estado activo al volver al menú
+	delete(UserSteps, chatID)
+
 	data, _ := db.Load()
 
 	// Registrar historial
@@ -265,10 +282,18 @@ func handleStart(c tele.Context, b *tele.Bot) error {
 	textoMenu := buildMainMenuText(data)
 	markup := buildMainMenuMarkup(chatID)
 
+	var msg *tele.Message
+	var err error
 	if c.Callback() != nil {
-		return c.Edit(textoMenu, markup, tele.ModeHTML)
+		msg, err = b.Edit(c.Message(), textoMenu, markup, tele.ModeHTML)
+	} else {
+		msg, err = b.Send(c.Chat(), textoMenu, markup, tele.ModeHTML)
 	}
-	return c.Send(textoMenu, markup, tele.ModeHTML)
+
+	if err == nil {
+		LastBotMsg[chatID] = msg
+	}
+	return err
 }
 
 func buildMainMenuText(data *db.ConfigData) string {

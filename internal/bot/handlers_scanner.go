@@ -23,7 +23,7 @@ func handleMenuScanner(c tele.Context, b *tele.Bot) error {
 	texto += "- Reporte en tiempo real\n\n"
 	texto += "<i>Disponible para todos los usuarios.</i>"
 
-	return c.Edit(texto, markup, tele.ModeHTML)
+	return SafeEditCtx(c, b, texto, markup)
 }
 
 func handleStartScanPrompt(c tele.Context, b *tele.Bot) error {

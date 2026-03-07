@@ -56,6 +56,14 @@ func handleTextInputs(c tele.Context, b *tele.Bot) error {
 	}
 
 	lastMsg, _ := LastBotMsg[chatID]
+	textLower := strings.ToLower(strings.TrimSpace(text))
+
+	// Interceptar comandos de navegación para cancelar estado
+	if strings.HasPrefix(text, "/") || textLower == "menu" || textLower == "salir" || textLower == "atrás" || textLower == "atras" || textLower == "cancelar" {
+		delete(UserSteps, chatID)
+		delete(TempData, chatID)
+		return handleStart(c, b)
+	}
 
 	switch step {
 	case "awaiting_ssh_username":
