@@ -38,6 +38,9 @@ func handleTextInputs(c tele.Context, b *tele.Bot) error {
 		return nil
 	}
 
+	// Borrar el mensaje del usuario de inmediato para mantener el chat limpio (Sink Global)
+	_ = c.Delete()
+
 	markupCancel := &tele.ReplyMarkup{}
 	markupCancel.Inline(markupCancel.Row(markupCancel.Data("❌ Cancelar", "cancelar_accion")))
 
@@ -54,9 +57,6 @@ func handleTextInputs(c tele.Context, b *tele.Bot) error {
 		lastMsg, _ := LastBotMsg[chatID]
 		return processScannerSteps(step, text, chatID, c, b, lastMsg)
 	}
-
-	// Borrar el mensaje del usuario para mantener el chat limpio
-	_ = c.Delete()
 
 	lastMsg, _ := LastBotMsg[chatID]
 	textLower := strings.ToLower(strings.TrimSpace(text))
