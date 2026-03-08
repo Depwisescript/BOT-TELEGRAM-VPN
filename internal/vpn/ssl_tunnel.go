@@ -99,11 +99,11 @@ frontend ssl_frontend
 
 backend websocket_backend
     mode tcp
-    server ssh_ws_server 127.0.0.1:10015 send-proxy check
+    server ssh_ws_server 127.0.0.1:10015 check
 
 backend grpc_backend
     mode tcp
-    server grpc_server 127.0.0.1:1013 send-proxy check
+    server grpc_server 127.0.0.1:1013 check
 
 backend ssh_ws_default_backend
     mode tcp
