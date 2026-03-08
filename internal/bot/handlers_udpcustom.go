@@ -18,9 +18,8 @@ func handleInstallUDPCustom(c tele.Context, b *tele.Bot) error {
 
 	c.Edit("⏳ <b>Instalando UDP Custom...</b>\n\nPor favor espera, configurando el servidor para HTTP Custom.", tele.ModeHTML)
 
-	// Usamos puerto por defecto 36712 (común en UDP Custom) o automatizamos
-	// Para seguir la lógica de "un clic" que pidió el usuario:
-	port := "36712"
+	// Puerto de escucha UDP (2100 como en producción)
+	port := "2100"
 
 	err := vpn.InstallUDPCustom(port)
 	markup := &tele.ReplyMarkup{}
@@ -35,7 +34,7 @@ func handleInstallUDPCustom(c tele.Context, b *tele.Bot) error {
 		return nil
 	})
 
-	return c.Edit("✅ <b>¡UDP Custom instalado con éxito!</b>\n\n🚀 <b>Puerto:</b> 1-65535 (Redireccionado)\n🔑 <b>Auth:</b> Usuarios SSH del sistema\n\nYa puedes conectar desde la app <b>HTTP Custom</b> usando el método <b>UDP Custom</b>.", markup, tele.ModeHTML)
+	return c.Edit("✅ <b>¡UDP Custom instalado con éxito!</b>\n\n🚀 <b>Puerto:</b> 2100 (NAT 1:65535)\n🔑 <b>Auth:</b> Usuarios SSH del sistema\n⚠️ <b>Exclusiones:</b> 323, 2200, 7100-7300, 10004, 10008\n\nYa puedes conectar desde la app <b>HTTP Custom</b> usando el método <b>UDP Custom</b>.", markup, tele.ModeHTML)
 }
 
 func handleUninstallUDPCustom(c tele.Context, b *tele.Bot) error {

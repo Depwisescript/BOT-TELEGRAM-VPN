@@ -41,11 +41,24 @@ func GetSystemReport() string {
 	report += "🔌 <b>Redirecciones (NAT):</b>\n<pre>" + string(iptNat) + "</pre>\n"
 
 	// 2. Status Servicios
-	svcs := []string{"zivpn.service", "udp-custom.service", "badvpn.service"}
+	svcs := []string{
+		"badvpn.service",
+		"udp-custom.service",
+		"ssh-ws.service",
+		"ssh-ws-pro.service",
+		"haproxy.service",
+		"dropbear_custom.service",
+		"zivpn.service",
+		"falconproxy.service",
+	}
 	report += "⚙️ <b>Estado Servicios:</b>\n"
 	for _, s := range svcs {
 		active, _ := exec.Command("systemctl", "is-active", s).Output()
-		report += fmt.Sprintf("• %s: <code>%s</code>\n", s, strings.TrimSpace(string(active)))
+		status := strings.TrimSpace(string(active))
+		if status == "" {
+			status = "no encontrado"
+		}
+		report += fmt.Sprintf("• %s: <code>%s</code>\n", s, status)
 	}
 
 	// 3. RAM

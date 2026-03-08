@@ -144,7 +144,7 @@ func handleSubMenuBadVPN(c tele.Context, b *tele.Bot) error {
 	data, _ := db.Load()
 	status := "❌ Desinstalado"
 	if data.BadVPN {
-		status = "✅ Instalado"
+		status = "✅ Instalado (Puertos: 7100, 7200, 7300)"
 	}
 
 	markup := &tele.ReplyMarkup{}
@@ -154,7 +154,7 @@ func handleSubMenuBadVPN(c tele.Context, b *tele.Bot) error {
 
 	markup.Inline(markup.Row(btnInst), markup.Row(btnUninst), markup.Row(btnBack))
 
-	texto := fmt.Sprintf("🎮 <b>Gestión de BadVPN</b>\n\n📊 <b>Estado:</b> %s\n\n¿Qué deseas hacer?", status)
+	texto := fmt.Sprintf("🎮 <b>Gestión de BadVPN</b>\n\n📊 <b>Estado:</b> %s\n\n⚙️ Escucha en puertos <code>7100</code>, <code>7200</code>, <code>7300</code> (automático)\n\n¿Qué deseas hacer?", status)
 	return SafeEditCtx(c, b, texto, markup)
 }
 
@@ -179,13 +179,20 @@ func handleSubMenuSSL(c tele.Context, b *tele.Bot) error {
 }
 
 func handleSubMenuDropbear(c tele.Context, b *tele.Bot) error {
+	data, _ := db.Load()
+	status := "❌ Desinstalado"
+	if data.Dropbear != "" {
+		status = "✅ Instalado (Puertos: " + data.Dropbear + ")"
+	}
+
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(
 		markup.Row(markup.Data("📥 Instalar", "install_dropbear")),
 		markup.Row(markup.Data("🗑️ Desinstalar", "uninstall_dropbear")),
 		markup.Row(markup.Data("🔙 Volver", "menu_protocols")),
 	)
-	return SafeEditCtx(c, b, "🐻 <b>Gestión de Dropbear</b>\n\n¿Qué deseas hacer?", markup)
+	texto := fmt.Sprintf("🐻 <b>Gestión de Dropbear</b>\n\n📊 <b>Estado:</b> %s\n\nPuedes especificar múltiples puertos separados por coma (Ej: 143,109)\n\n¿Qué deseas hacer?", status)
+	return SafeEditCtx(c, b, texto, markup)
 }
 
 func handleSubMenuSSHWS(c tele.Context, b *tele.Bot) error {
@@ -194,16 +201,16 @@ func handleSubMenuSSHWS(c tele.Context, b *tele.Bot) error {
 	extraInfo := ""
 	if data.SSHWebSocket {
 		status = "✅ Instalado"
-		wsOK, wssOK := vpn.IsSSHWebSocketActive()
+		wsOK, wsProOK := vpn.IsSSHWebSocketActive()
 		if wsOK {
-			extraInfo += "\n🔓 <b>WS  (Puerto 80):</b> ✅ Activo"
+			extraInfo += "\n🔓 <b>ssh-ws  (Puerto 10015):</b> ✅ Activo"
 		} else {
-			extraInfo += "\n🔓 <b>WS  (Puerto 80):</b> ❌ Inactivo"
+			extraInfo += "\n🔓 <b>ssh-ws  (Puerto 10015):</b> ❌ Inactivo"
 		}
-		if wssOK {
-			extraInfo += "\n🔒 <b>WSS (Puerto 443):</b> ✅ Activo"
+		if wsProOK {
+			extraInfo += "\n🔒 <b>ssh-ws-pro (Puerto 2082):</b> ✅ Activo"
 		} else {
-			extraInfo += "\n🔒 <b>WSS (Puerto 443):</b> ❌ Inactivo"
+			extraInfo += "\n🔒 <b>ssh-ws-pro (Puerto 2082):</b> ❌ Inactivo"
 		}
 	}
 
@@ -214,12 +221,12 @@ func handleSubMenuSSHWS(c tele.Context, b *tele.Bot) error {
 
 	markup.Inline(markup.Row(btnInst), markup.Row(btnUninst), markup.Row(btnBack))
 
-	texto := fmt.Sprintf("🌐 <b>Gestión de SSH WebSocket</b>\n\n📊 <b>Estado:</b> %s%s\n\nPermite conectar SSH a través de WebSocket en puertos <b>80</b> (WS) y <b>443</b> (WSS).\nCompatible con HTTP Injector, HTTP Custom y HA Tunnel.\n\n¿Qué deseas hacer?", status, extraInfo)
+	texto := fmt.Sprintf("🌐 <b>Gestión de SSH WebSocket</b>\n\n📊 <b>Estado:</b> %s%s\n\n⚙️ <b>ssh-ws:</b> Puerto 10015 → SSH (para HAProxy)\n⚙️ <b>ssh-ws-pro:</b> Puerto 2082 → SSH\nCompatible con HTTP Injector, HTTP Custom y HA Tunnel.\n\n¿Qué deseas hacer?", status, extraInfo)
 	return SafeEditCtx(c, b, texto, markup)
 }
 
 func handleInstallSSHWS(c tele.Context, b *tele.Bot) error {
-	SafeEditCtx(c, b, "⏳ <b>Instalando SSH WebSocket...</b>\n\n<i>Configurando proxy WS (:80) y WSS (:443).\nEsto puede tardar unos segundos...</i>", nil)
+	SafeEditCtx(c, b, "⏳ <b>Instalando SSH WebSocket...</b>\n\n<i>Descargando binarios ssh-ws y ssh-ws-pro...\nEsto puede tardar unos segundos...</i>", nil)
 
 	err := vpn.InstallSSHWebSocket()
 	markup := &tele.ReplyMarkup{}
@@ -236,8 +243,8 @@ func handleInstallSSHWS(c tele.Context, b *tele.Bot) error {
 	ip := sys.GetPublicIP()
 	res := "✅ <b>SSH WebSocket Instalado Correctamente</b>\n"
 	res += "━━━━━━━━━━━━━━\n"
-	res += "🔓 <b>WS:</b>  <code>ws://" + ip + ":80</code>\n"
-	res += "🔒 <b>WSS:</b> <code>wss://" + ip + ":443</code>\n"
+	res += "🔓 <b>ssh-ws:</b>  <code>" + ip + ":10015</code> → SSH\n"
+	res += "🔒 <b>ssh-ws-pro:</b> <code>" + ip + ":2082</code> → SSH\n"
 	res += "━━━━━━━━━━━━━━\n"
 	res += "<i>Compatible con HTTP Injector, HTTP Custom y HA Tunnel.</i>"
 
@@ -351,7 +358,7 @@ func handleInstallBadVPN(c tele.Context, b *tele.Bot, lastMsg *tele.Message) err
 	chatID := c.Chat().ID
 	delete(UserSteps, chatID)
 
-	b.Edit(lastMsg, "⏳ <i>Instalando BadVPN (UDPGW) en puerto automático 7300...</i>", tele.ModeHTML)
+	b.Edit(lastMsg, "⏳ <i>Instalando BadVPN (UDPGW) en puertos 7100, 7200, 7300...</i>", tele.ModeHTML)
 
 	err := vpn.InstallBadVPN("7300")
 	if err != nil {
@@ -363,9 +370,12 @@ func handleInstallBadVPN(c tele.Context, b *tele.Bot, lastMsg *tele.Message) err
 
 	res := "✅ <b>BadVPN Instalado Correctamente</b>\n"
 	res += "━━━━━━━━━━━━━━\n"
-	res += "⚙️ <b>Puerto TCP:</b> <code>7300</code>\n"
+	res += "⚙️ <b>Puerto 1:</b> <code>127.0.0.1:7100</code>\n"
+	res += "⚙️ <b>Puerto 2:</b> <code>127.0.0.1:7200</code>\n"
+	res += "⚙️ <b>Puerto 3:</b> <code>127.0.0.1:7300</code>\n"
+	res += "👥 <b>Max Clients:</b> <code>500</code>\n"
 	res += "━━━━━━━━━━━━━━\n"
-	res += "<i>El demonio udpgw ya está escuchando.</i>"
+	res += "<i>El demonio udpgw ya está escuchando en los 3 puertos.</i>"
 
 	data, _ := db.Load()
 	data.BadVPN = true
@@ -406,7 +416,7 @@ func handleInstallDropbear(c tele.Context, b *tele.Bot, lastMsg *tele.Message) e
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "cancelar_accion")))
 
-	b.Edit(lastMsg, "🐻 <b>Instalador de Dropbear</b>\n\n⚙️ <i>Escribe el puerto de escucha (Ej: 90):</i>", markup, tele.ModeHTML)
+	b.Edit(lastMsg, "🐻 <b>Instalador de Dropbear</b>\n\n⚙️ <i>Escribe los puertos de escucha separados por coma (Ej: 143,109):</i>", markup, tele.ModeHTML)
 	return nil
 }
 
@@ -721,25 +731,26 @@ func processVPNSteps(step string, text string, chatID int64, c tele.Context, b *
 		return nil
 
 	case "awaiting_vpn_dropbear_port":
-		port := text
+		ports := text
 		delete(UserSteps, chatID)
 		delete(LastBotMsg, chatID)
 
-		b.Edit(lastMsg, "⏳ <i>Configurando Dropbear...</i>", tele.ModeHTML)
-		err := vpn.InstallDropbear(port)
+		b.Edit(lastMsg, "⏳ <i>Configurando Dropbear (multi-puerto)...</i>", tele.ModeHTML)
+		err := vpn.InstallDropbear(ports)
 		if err != nil {
 			b.Edit(lastMsg, fmt.Sprintf("❌ <b>Error al instalar Dropbear:</b>\n<pre>%v</pre>", err), markup, tele.ModeHTML)
 			return nil
 		}
 
-		res := "✅ <b>Dropbear Instalado</b>\n"
+		res := "✅ <b>Dropbear Instalado (Multi-Puerto)</b>\n"
 		res += "━━━━━━━━━━━━━━\n"
-		res += fmt.Sprintf("🐻 <b>Puerto:</b> <code>%s</code>\n", port)
+		res += fmt.Sprintf("🐻 <b>Puertos:</b> <code>%s</code>\n", ports)
+		res += "🔧 <b>Buffer:</b> <code>65536</code>\n"
 		res += "━━━━━━━━━━━━━━\n"
 
 		// Guardar estado
 		data, _ := db.Load()
-		data.Dropbear = port
+		data.Dropbear = ports
 		db.Save(data)
 
 		b.Edit(lastMsg, res, markup, tele.ModeHTML)
