@@ -320,6 +320,14 @@ func handleRandomPass(c tele.Context, b *tele.Bot) error {
 	lastMsg, _ := LastBotMsg[chatID]
 
 	if !isSuperAdminID(chatID) {
+		data, _ := db.Load()
+		if isAdmin(chatID) {
+			TempData[chatID]["days"] = strconv.Itoa(data.GetMaxDaysAdmin())
+			TempData[chatID]["limit"] = strconv.Itoa(data.GetMaxLimitAdmin())
+		} else {
+			TempData[chatID]["days"] = strconv.Itoa(data.GetMaxDaysPublic())
+			TempData[chatID]["limit"] = strconv.Itoa(data.GetMaxLimitPublic())
+		}
 		return finishSSHCreation(c, b, chatID, lastMsg)
 	}
 
