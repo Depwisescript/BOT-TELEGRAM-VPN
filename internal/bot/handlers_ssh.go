@@ -86,12 +86,13 @@ func handleTextInputs(c tele.Context, b *tele.Bot) error {
 	case "awaiting_ssh_password":
 		TempData[chatID]["password"] = text
 		if !isSuperAdminID(chatID) {
+			data, _ := db.Load()
 			if isAdmin(chatID) {
-				TempData[chatID]["days"] = "7"
-				TempData[chatID]["limit"] = "20"
+				TempData[chatID]["days"] = strconv.Itoa(data.GetMaxDaysAdmin())
+				TempData[chatID]["limit"] = strconv.Itoa(data.GetMaxLimitAdmin())
 			} else {
-				TempData[chatID]["days"] = "3"
-				TempData[chatID]["limit"] = "1"
+				TempData[chatID]["days"] = strconv.Itoa(data.GetMaxDaysPublic())
+				TempData[chatID]["limit"] = strconv.Itoa(data.GetMaxLimitPublic())
 			}
 			return finishSSHCreation(c, b, chatID, lastMsg)
 		}

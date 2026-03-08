@@ -34,6 +34,10 @@ type ConfigData struct {
 	ZivpnHandles     map[string]string    `json:"zivpn_handles"`     // pass -> @handle
 	PublicScanner    bool                 `json:"public_scanner"`    // Toggle scanner for public
 	SSHWebSocket     bool                 `json:"ssh_websocket"`     // SSH WebSocket proxy WS/WSS
+	MaxDaysPublic    int                  `json:"max_days_public"`   // Max days for public user creation
+	MaxLimitPublic   int                  `json:"max_limit_public"`  // Max device limit for public
+	MaxDaysAdmin     int                  `json:"max_days_admin"`    // Max days for admin user creation
+	MaxLimitAdmin    int                  `json:"max_limit_admin"`   // Max device limit for admins
 }
 
 type AdminInfo struct {
@@ -122,6 +126,38 @@ func loadUnlocked() (*ConfigData, error) {
 		data.ZivpnHandles = make(map[string]string)
 	}
 	return &data, nil
+}
+
+// GetMaxDaysPublic returns max days for public users (default 3)
+func (d *ConfigData) GetMaxDaysPublic() int {
+	if d.MaxDaysPublic <= 0 {
+		return 3
+	}
+	return d.MaxDaysPublic
+}
+
+// GetMaxLimitPublic returns max device limit for public users (default 1)
+func (d *ConfigData) GetMaxLimitPublic() int {
+	if d.MaxLimitPublic <= 0 {
+		return 1
+	}
+	return d.MaxLimitPublic
+}
+
+// GetMaxDaysAdmin returns max days for admins (default 7)
+func (d *ConfigData) GetMaxDaysAdmin() int {
+	if d.MaxDaysAdmin <= 0 {
+		return 7
+	}
+	return d.MaxDaysAdmin
+}
+
+// GetMaxLimitAdmin returns max device limit for admins (default 20)
+func (d *ConfigData) GetMaxLimitAdmin() int {
+	if d.MaxLimitAdmin <= 0 {
+		return 20
+	}
+	return d.MaxLimitAdmin
 }
 
 // Save guarda la memoria en el archivo bot_data.json

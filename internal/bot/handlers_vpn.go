@@ -523,11 +523,46 @@ func processVPNSteps(step string, text string, chatID int64, c tele.Context, b *
 		})
 		// Aplicar al sistema
 		err := sys.SetSSHBanner(banner)
+		markupBack := &tele.ReplyMarkup{}
+		markupBack.Inline(markupBack.Row(markupBack.Data("🔙 Volver", "edit_banner")))
 		if err != nil {
-			b.Edit(lastMsg, fmt.Sprintf("⚠️ <b>Banner guardado en DB pero error al aplicar al sistema:</b>\n%v", err), markup, tele.ModeHTML)
+			b.Edit(lastMsg, fmt.Sprintf("⚠️ <b>Banner guardado en DB pero error al aplicar:</b>\n%v", err), markupBack, tele.ModeHTML)
 		} else {
-			b.Edit(lastMsg, "✅ <b>Banner SSH actualizado y aplicado al sistema.</b>", markup, tele.ModeHTML)
+			b.Edit(lastMsg, "✅ <b>Banner SSH actualizado y aplicado al sistema.</b>", markupBack, tele.ModeHTML)
 		}
+		return nil
+
+	case "awaiting_quota_days_public", "awaiting_quota_limit_public", "awaiting_quota_days_admin", "awaiting_quota_limit_admin":
+		val, err := strconv.Atoi(text)
+		if err != nil || val <= 0 {
+			_, err := SafeEdit(chatID, b, lastMsg, "⚠️ Valor inválido. Escribe un número mayor a 0:", markup)
+			return err
+		}
+		delete(UserSteps, chatID)
+		delete(LastBotMsg, chatID)
+
+		var label string
+		db.Update(func(data *db.ConfigData) error {
+			switch step {
+			case "awaiting_quota_days_public":
+				data.MaxDaysPublic = val
+				label = fmt.Sprintf("Días Público → %d", val)
+			case "awaiting_quota_limit_public":
+				data.MaxLimitPublic = val
+				label = fmt.Sprintf("Dispositivos Público → %d", val)
+			case "awaiting_quota_days_admin":
+				data.MaxDaysAdmin = val
+				label = fmt.Sprintf("Días Admin → %d", val)
+			case "awaiting_quota_limit_admin":
+				data.MaxLimitAdmin = val
+				label = fmt.Sprintf("Dispositivos Admin → %d", val)
+			}
+			return nil
+		})
+
+		markupBack := &tele.ReplyMarkup{}
+		markupBack.Inline(markupBack.Row(markupBack.Data("🔙 Volver", "edit_quotas")))
+		b.Edit(lastMsg, fmt.Sprintf("✅ <b>Cuota actualizada:</b> %s", label), markupBack, tele.ModeHTML)
 		return nil
 
 	case "awaiting_vpn_slowdns_domain":

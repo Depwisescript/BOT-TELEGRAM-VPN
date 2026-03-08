@@ -42,12 +42,14 @@ func handleMenuAdmins(c tele.Context, b *tele.Bot) error {
 	btnReboot := markup.Data("🔄 Reiniciar VPS", "reboot_vps_confirm")
 	btnBack := markup.Data("🔙 Volver", "back_main")
 
+	btnQuotas := markup.Data("📊 Cuotas Creación", "edit_quotas")
+
 	markup.Inline(
 		markup.Row(btnToggle),
 		markup.Row(btnList, btnAdd),
 		markup.Row(btnDel, btnInfo),
 		markup.Row(btnCloudflare, btnCloudfront),
-		markup.Row(btnBanner),
+		markup.Row(btnBanner, btnQuotas),
 		markup.Row(btnReset, btnScanToggle),
 		markup.Row(btnReboot),
 		markup.Row(btnBack),
@@ -57,8 +59,10 @@ func handleMenuAdmins(c tele.Context, b *tele.Bot) error {
 	texto += "━━━━━━━━━━━━━━\n"
 	texto += fmt.Sprintf("🛡️ <b>Acceso:</b> %s\n", accStatus)
 	texto += fmt.Sprintf("🔍 <b>Escaner Público:</b> %s\n", scanPubStatus)
-	texto += fmt.Sprintf("👤 <b>Admins:</b> %d\n", len(data.Admins)+1) // +1 por SuperAdmin
+	texto += fmt.Sprintf("👤 <b>Admins:</b> %d\n", len(data.Admins)+1)
 	texto += fmt.Sprintf("👥 <b>Historial:</b> %d IDs\n", len(data.UserHistory))
+	texto += fmt.Sprintf("📊 <b>Cuotas Público:</b> %d días / %d disp.\n", data.GetMaxDaysPublic(), data.GetMaxLimitPublic())
+	texto += fmt.Sprintf("📊 <b>Cuotas Admin:</b> %d días / %d disp.\n", data.GetMaxDaysAdmin(), data.GetMaxLimitAdmin())
 	texto += "━━━━━━━━━━━━━━\n"
 	texto += "<i>Selecciona una opción avanzada:</i>"
 
@@ -71,6 +75,40 @@ func handleTogglePublicAccess(c tele.Context, b *tele.Bot) error {
 		return nil
 	})
 	return handleMenuAdmins(c, b)
+}
+
+func handleEditQuotas(c tele.Context, b *tele.Bot) error {
+	data, _ := db.Load()
+
+	markup := &tele.ReplyMarkup{}
+	btnDaysPub := markup.Data(fmt.Sprintf("📅 Días Público: %d", data.GetMaxDaysPublic()), "quota_days_public")
+	btnLimitPub := markup.Data(fmt.Sprintf("📱 Disp. Público: %d", data.GetMaxLimitPublic()), "quota_limit_public")
+	btnDaysAdm := markup.Data(fmt.Sprintf("📅 Días Admin: %d", data.GetMaxDaysAdmin()), "quota_days_admin")
+	btnLimitAdm := markup.Data(fmt.Sprintf("📱 Disp. Admin: %d", data.GetMaxLimitAdmin()), "quota_limit_admin")
+	btnBack := markup.Data("🔙 Volver", "menu_admins")
+
+	markup.Inline(
+		markup.Row(btnDaysPub, btnLimitPub),
+		markup.Row(btnDaysAdm, btnLimitAdm),
+		markup.Row(btnBack),
+	)
+
+	texto := "📊 <b>Cuotas de Creación de Usuarios</b>\n"
+	texto += "━━━━━━━━━━━━━━\n"
+	texto += fmt.Sprintf("👥 <b>Público:</b> %d días / %d dispositivos\n", data.GetMaxDaysPublic(), data.GetMaxLimitPublic())
+	texto += fmt.Sprintf("👤 <b>Admins:</b> %d días / %d dispositivos\n", data.GetMaxDaysAdmin(), data.GetMaxLimitAdmin())
+	texto += "━━━━━━━━━━━━━━\n"
+	texto += "<i>Estos valores se aplican automáticamente al crear usuarios SSH.\nEl SuperAdmin no tiene límites.</i>"
+
+	return SafeEditCtx(c, b, texto, markup)
+}
+
+func handleQuotaPrompt(c tele.Context, b *tele.Bot, step string, label string) error {
+	chatID := c.Chat().ID
+	UserSteps[chatID] = step
+	markup := &tele.ReplyMarkup{}
+	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "edit_quotas")))
+	return SafeEditCtx(c, b, fmt.Sprintf("✏️ <b>%s</b>\n\n<i>Escribe el nuevo valor (número):</i>", label), markup)
 }
 
 func handleListAdmins(c tele.Context, b *tele.Bot) error {
