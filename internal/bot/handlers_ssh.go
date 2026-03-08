@@ -49,7 +49,7 @@ func handleTextInputs(c tele.Context, b *tele.Bot) error {
 		lastMsg := LastBotMsg[chatID]
 		return processZivpnSteps(step, text, chatID, c, b, lastMsg)
 	}
-	if strings.HasPrefix(step, "awaiting_vpn_") {
+	if strings.HasPrefix(step, "awaiting_vpn_") || strings.HasPrefix(step, "awaiting_quota_") {
 		lastMsg := LastBotMsg[chatID]
 		return processVPNSteps(step, text, chatID, c, b, lastMsg)
 	}
