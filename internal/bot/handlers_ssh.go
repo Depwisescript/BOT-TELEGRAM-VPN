@@ -281,6 +281,8 @@ func finishSSHCreation(c tele.Context, b *tele.Bot, chatID int64, lastMsg *tele.
 	})
 
 	// Respuesta final
+	ip := sys.GetPublicIP()
+	dataFinal, _ := db.Load()
 	res := "✅ <b>Usuario SSH Creado</b>\n"
 	res += "━━━━━━━━━━━━━━\n"
 	res += fmt.Sprintf("👤 <b>User:</b> <code>%s</code>\n", user)
@@ -288,7 +290,12 @@ func finishSSHCreation(c tele.Context, b *tele.Bot, chatID int64, lastMsg *tele.
 	res += fmt.Sprintf("⏳ <b>Días:</b> %d\n", days)
 	res += fmt.Sprintf("💻 <b>Límite:</b> %d\n", limit)
 	res += "━━━━━━━━━━━━━━\n"
-	res += fmt.Sprintf("🌐 <b>IP:</b> <code>%s</code>\n", sys.GetPublicIP())
+	res += fmt.Sprintf("🌐 <b>IP:</b> <code>%s</code>\n", ip)
+	res += "🔌 <b>SSH Port:</b> <code>22</code>\n"
+	if dataFinal.SSHWebSocket {
+		res += "🌐 <b>WS:</b>  <code>ws://" + ip + ":80</code>\n"
+		res += "🔒 <b>WSS:</b> <code>wss://" + ip + ":443</code>\n"
+	}
 	res += "━━━━━━━━━━━━━━\n"
 
 	markup := &tele.ReplyMarkup{}

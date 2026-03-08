@@ -42,6 +42,19 @@ func handleInfo(c tele.Context, b *tele.Bot) error {
 		info += "🎮 <b>BadVPN UDPGW:</b> <code>activo (7300)</code>\n"
 		active = true
 	}
+	if data.SSHWebSocket {
+		wsOK, wssOK := vpn.IsSSHWebSocketActive()
+		wsTag := "❌"
+		wssTag := "❌"
+		if wsOK {
+			wsTag = "✅"
+		}
+		if wssOK {
+			wssTag = "✅"
+		}
+		info += fmt.Sprintf("🌐 <b>SSH WebSocket:</b> WS:%s <code>:80</code> WSS:%s <code>:443</code>\n", wsTag, wssTag)
+		active = true
+	}
 	if data.Falcon != "" {
 		info += fmt.Sprintf("🦅 <b>Falcon Proxy:</b> puerto <code>%s</code>\n", data.Falcon)
 		active = true
