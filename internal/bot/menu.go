@@ -132,6 +132,7 @@ func StartBot() {
 	b.Handle(&tele.Btn{Unique: "submenu_dropbear"}, func(c tele.Context) error { return handleSubMenuDropbear(c, b) })
 	b.Handle(&tele.Btn{Unique: "submenu_proxydt"}, func(c tele.Context) error { return handleSubMenuProxyDT(c, b) })
 	b.Handle(&tele.Btn{Unique: "submenu_udpcustom"}, func(c tele.Context) error { return handleSubMenuUDPCustom(c, b) })
+	b.Handle(&tele.Btn{Unique: "submenu_sshws"}, func(c tele.Context) error { return handleSubMenuSSHWS(c, b) })
 	b.Handle(&tele.Btn{Unique: "protocol_diag"}, func(c tele.Context) error { return handleProtocolDiag(c, b) })
 	b.Handle(&tele.Btn{Unique: "menu_protocols"}, func(c tele.Context) error { return handleMenuProtocols(c, b) })
 
@@ -144,6 +145,8 @@ func StartBot() {
 	b.Handle(&tele.Btn{Unique: "uninstall_dropbear"}, func(c tele.Context) error { return handleUninstallProtocol(c, b, "Dropbear") })
 	b.Handle(&tele.Btn{Unique: "uninstall_proxydt"}, func(c tele.Context) error { return handleUninstallProtocol(c, b, "ProxyDT") })
 	b.Handle(&tele.Btn{Unique: "uninstall_udpcustom"}, func(c tele.Context) error { return handleUninstallUDPCustom(c, b) })
+	b.Handle(&tele.Btn{Unique: "install_sshws"}, func(c tele.Context) error { return handleInstallSSHWS(c, b) })
+	b.Handle(&tele.Btn{Unique: "uninstall_sshws"}, func(c tele.Context) error { return handleUninstallProtocol(c, b, "SSH WebSocket") })
 
 	// Callbacks Dinámicos (One-Tap Selection)
 	b.Handle("\fed_user:", func(c tele.Context) error { return handleEditSelection(c, b) })

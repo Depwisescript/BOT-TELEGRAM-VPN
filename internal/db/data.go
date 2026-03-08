@@ -33,6 +33,7 @@ type ConfigData struct {
 	SSHHandles       map[string]string    `json:"ssh_handles"`       // user -> @handle
 	ZivpnHandles     map[string]string    `json:"zivpn_handles"`     // pass -> @handle
 	PublicScanner    bool                 `json:"public_scanner"`    // Toggle scanner for public
+	SSHWebSocket     bool                 `json:"ssh_websocket"`     // SSH WebSocket proxy WS/WSS
 }
 
 type AdminInfo struct {

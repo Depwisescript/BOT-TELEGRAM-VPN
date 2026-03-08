@@ -29,6 +29,7 @@ func handleMenuProtocols(c tele.Context, b *tele.Bot) error {
 	btnFalcon := markup.Data("🦅 Falcon", "submenu_falcon")
 	btnSSL := markup.Data("📜 SSL Tunnel", "submenu_ssl")
 	btnDropbear := markup.Data("🐻 Dropbear", "submenu_dropbear")
+	btnSSHWS := markup.Data("🌐 SSH WebSocket", "submenu_sshws")
 	btnScannerDeps := markup.Data("🛠️ Instalar Herramientas Escaner", "install_scanner_deps")
 	btnCancel := markup.Data("🔙 Volver", "back_main")
 
@@ -37,6 +38,7 @@ func handleMenuProtocols(c tele.Context, b *tele.Bot) error {
 		markup.Row(btnBadVPN, btnUDPCustom),
 		markup.Row(btnProxy, btnFalcon),
 		markup.Row(btnSSL, btnDropbear),
+		markup.Row(btnSSHWS),
 		markup.Row(markup.Data("🛡️ Diagnóstico de Red", "protocol_diag")),
 		markup.Row(btnScannerDeps),
 		markup.Row(btnCancel),
@@ -186,6 +188,62 @@ func handleSubMenuDropbear(c tele.Context, b *tele.Bot) error {
 	return SafeEditCtx(c, b, "🐻 <b>Gestión de Dropbear</b>\n\n¿Qué deseas hacer?", markup)
 }
 
+func handleSubMenuSSHWS(c tele.Context, b *tele.Bot) error {
+	data, _ := db.Load()
+	status := "❌ Desinstalado"
+	extraInfo := ""
+	if data.SSHWebSocket {
+		status = "✅ Instalado"
+		wsOK, wssOK := vpn.IsSSHWebSocketActive()
+		if wsOK {
+			extraInfo += "\n🔓 <b>WS  (Puerto 80):</b> ✅ Activo"
+		} else {
+			extraInfo += "\n🔓 <b>WS  (Puerto 80):</b> ❌ Inactivo"
+		}
+		if wssOK {
+			extraInfo += "\n🔒 <b>WSS (Puerto 443):</b> ✅ Activo"
+		} else {
+			extraInfo += "\n🔒 <b>WSS (Puerto 443):</b> ❌ Inactivo"
+		}
+	}
+
+	markup := &tele.ReplyMarkup{}
+	btnInst := markup.Data("📥 Instalar", "install_sshws")
+	btnUninst := markup.Data("🗑️ Desinstalar", "uninstall_sshws")
+	btnBack := markup.Data("🔙 Volver", "menu_protocols")
+
+	markup.Inline(markup.Row(btnInst), markup.Row(btnUninst), markup.Row(btnBack))
+
+	texto := fmt.Sprintf("🌐 <b>Gestión de SSH WebSocket</b>\n\n📊 <b>Estado:</b> %s%s\n\nPermite conectar SSH a través de WebSocket en puertos <b>80</b> (WS) y <b>443</b> (WSS).\nCompatible con HTTP Injector, HTTP Custom y HA Tunnel.\n\n¿Qué deseas hacer?", status, extraInfo)
+	return SafeEditCtx(c, b, texto, markup)
+}
+
+func handleInstallSSHWS(c tele.Context, b *tele.Bot) error {
+	SafeEditCtx(c, b, "⏳ <b>Instalando SSH WebSocket...</b>\n\n<i>Configurando proxy WS (:80) y WSS (:443).\nEsto puede tardar unos segundos...</i>", nil)
+
+	err := vpn.InstallSSHWebSocket()
+	markup := &tele.ReplyMarkup{}
+	markup.Inline(markup.Row(markup.Data("🔙 Volver", "submenu_sshws")))
+
+	if err != nil {
+		return SafeEditCtx(c, b, fmt.Sprintf("❌ <b>Error al instalar SSH WebSocket:</b>\n<pre>%v</pre>", err), markup)
+	}
+
+	data, _ := db.Load()
+	data.SSHWebSocket = true
+	db.Save(data)
+
+	ip := sys.GetPublicIP()
+	res := "✅ <b>SSH WebSocket Instalado Correctamente</b>\n"
+	res += "━━━━━━━━━━━━━━\n"
+	res += "🔓 <b>WS:</b>  <code>ws://" + ip + ":80</code>\n"
+	res += "🔒 <b>WSS:</b> <code>wss://" + ip + ":443</code>\n"
+	res += "━━━━━━━━━━━━━━\n"
+	res += "<i>Compatible con HTTP Injector, HTTP Custom y HA Tunnel.</i>"
+
+	return SafeEditCtx(c, b, res, markup)
+}
+
 func handleSubMenuProxyDT(c tele.Context, b *tele.Bot) error {
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(
@@ -209,6 +267,9 @@ func handleUninstallProtocol(c tele.Context, b *tele.Bot, proto string) error {
 	case "ZiVPN":
 		err = vpn.RemoveZiVPN()
 		data.Zivpn = false
+	case "SSH WebSocket":
+		err = vpn.RemoveSSHWebSocket()
+		data.SSHWebSocket = false
 	case "BadVPN":
 		err = vpn.RemoveBadVPN()
 		data.BadVPN = false
