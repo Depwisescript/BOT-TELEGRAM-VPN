@@ -169,13 +169,20 @@ func handleSubMenuFalcon(c tele.Context, b *tele.Bot) error {
 }
 
 func handleSubMenuSSL(c tele.Context, b *tele.Bot) error {
+	data, _ := db.Load()
+	status := "❌ Desinstalado"
+	if data.SSLTunnel != "" {
+		status = "✅ Instalado"
+	}
+
 	markup := &tele.ReplyMarkup{}
 	markup.Inline(
 		markup.Row(markup.Data("📥 Instalar", "install_ssl")),
 		markup.Row(markup.Data("🗑️ Desinstalar", "uninstall_ssl")),
 		markup.Row(markup.Data("🔙 Volver", "menu_protocols")),
 	)
-	return SafeEditCtx(c, b, "📜 <b>Gestión de SSL Tunnel</b>\n\n¿Qué deseas hacer?", markup)
+	texto := fmt.Sprintf("📜 <b>Gestión de SSL Tunnel (HAProxy)</b>\n\n📊 <b>Estado:</b> %s\n\n⚙️ Instala HAProxy multi-protocolo en puertos 443, 80, 8080\n🎮 <b>Requierido para juegos</b> (redirige WebSocket → SSH → BadVPN)\n\n¿Qué deseas hacer?", status)
+	return SafeEditCtx(c, b, texto, markup)
 }
 
 func handleSubMenuDropbear(c tele.Context, b *tele.Bot) error {
@@ -400,12 +407,34 @@ func handleInstallFalcon(c tele.Context, b *tele.Bot, lastMsg *tele.Message) err
 
 func handleInstallSSL(c tele.Context, b *tele.Bot, lastMsg *tele.Message) error {
 	chatID := c.Chat().ID
-	UserSteps[chatID] = "awaiting_vpn_ssl_port"
+	delete(UserSteps, chatID)
 
+	b.Edit(lastMsg, "⏳ <b>Instalando HAProxy Multi-Protocolo...</b>\n\n<i>Configurando puertos 443, 80, 8080 + proxy SSH WebSocket interno (10015).\nEsto soporta juegos, VoIP y streaming.\nPor favor espera...</i>", tele.ModeHTML)
+
+	err := vpn.InstallSSLTunnel("443")
 	markup := &tele.ReplyMarkup{}
-	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "cancelar_accion")))
+	markup.Inline(markup.Row(markup.Data("🔙 Volver", "menu_protocols")))
 
-	b.Edit(lastMsg, "📜 <b>Instalador de SSL Tunnel (HAProxy)</b>\n\n⚙️ <i>Escribe el puerto de escucha (Ej: 443):</i>", markup, tele.ModeHTML)
+	if err != nil {
+		b.Edit(lastMsg, fmt.Sprintf("❌ <b>Error al instalar HAProxy:</b>\n<pre>%v</pre>", err), markup, tele.ModeHTML)
+		return nil
+	}
+
+	ip := sys.GetPublicIP()
+	res := "✅ <b>HAProxy Multi-Protocolo Instalado</b>\n"
+	res += "━━━━━━━━━━━━━━\n"
+	res += "🔒 <b>HTTPS/WSS:</b> <code>" + ip + ":443</code>\n"
+	res += "🔓 <b>HTTP/WS:</b>  <code>" + ip + ":80</code>\n"
+	res += "🔓 <b>Alt:</b>      <code>" + ip + ":8080</code>\n"
+	res += "━━━━━━━━━━━━━━\n"
+	res += "🎮 <b>Para Juegos:</b> BadVPN UDPGW = <code>7300</code>\n"
+	res += "<i>El tráfico fluye: App → HAProxy(443) → SSH-WS(10015) → SSH → BadVPN → Internet</i>"
+
+	data, _ := db.Load()
+	data.SSLTunnel = "443"
+	db.Save(data)
+
+	b.Edit(lastMsg, res, markup, tele.ModeHTML)
 	return nil
 }
 

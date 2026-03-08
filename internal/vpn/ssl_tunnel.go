@@ -6,8 +6,8 @@ import (
 	"os/exec"
 )
 
-// haproxyCfg es la configuración multi-protocolo completa de HAProxy.
-// Replica la configuración del servidor de producción.
+// haproxyCfg es la configuración multi-protocolo de HAProxy.
+// websocket_backend y default apuntan a ssh-ws en 10015 para soporte de juegos.
 const haproxyCfg = `global
     stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
     stats timeout 1d
@@ -95,20 +95,20 @@ frontend ssl_frontend
     use_backend payload_backend if acl_path_trojan
     use_backend payload_backend if acl_path_grpc
     use_backend ssh_backend if acl_path_ssh
-    default_backend channel_ftvpn_backend
+    default_backend ssh_ws_default_backend
 
 backend websocket_backend
     mode tcp
-    server websocket_server 127.0.0.1:1010 send-proxy check
+    server ssh_ws_server 127.0.0.1:10015 send-proxy check
 
 backend grpc_backend
     mode tcp
     server grpc_server 127.0.0.1:1013 send-proxy check
 
-backend channel_ftvpn_backend
+backend ssh_ws_default_backend
     mode tcp
     balance roundrobin
-    server channel_ftvpn_server 127.0.0.1:1194 check
+    server ssh_ws_server 127.0.0.1:10015 check
 
 backend bot_ftvpn_backend
     mode tcp
@@ -132,8 +132,8 @@ backend ssh_backend
     server ssh_server 127.0.0.1:10015 check
 `
 
-// InstallSSLTunnel instala HAProxy con la configuración multi-protocolo completa.
-// Incluye detección TLS/HTTP, routing a WebSocket, gRPC, VLESS, VMess, Trojan, SSH y OpenVPN.
+// InstallSSLTunnel instala HAProxy con configuración multi-protocolo.
+// IMPORTANTE: Requiere que SSH WebSocket esté instalado en puerto 10015 primero.
 func InstallSSLTunnel(port string) error {
 	// 1. Instalar HAProxy
 	exec.Command("apt-get", "update").Run()
@@ -155,23 +155,39 @@ func InstallSSLTunnel(port string) error {
 		if err := cmdCert.Run(); err != nil {
 			return fmt.Errorf("fallo generar certificado: %v", err)
 		}
-		// Concatenar key + cert en un solo PEM
 		exec.Command("bash", "-c", "cat /tmp/haproxy_key.pem /tmp/haproxy_cert.pem > "+certFile).Run()
 		os.Remove("/tmp/haproxy_key.pem")
 		os.Remove("/tmp/haproxy_cert.pem")
 	}
 
-	// 4. Escribir configuración completa
+	// 4. Matar procesos en puertos que HAProxy necesita
+	exec.Command("bash", "-c", "fuser -k 80/tcp 2>/dev/null || true").Run()
+	exec.Command("bash", "-c", "fuser -k 443/tcp 2>/dev/null || true").Run()
+	exec.Command("bash", "-c", "fuser -k 8080/tcp 2>/dev/null || true").Run()
+
+	// 5. Detener servicios WS viejos que escuchan en 80/443
+	exec.Command("systemctl", "stop", "ssh-ws.service").Run()
+	exec.Command("systemctl", "stop", "ssh-wss.service").Run()
+	exec.Command("systemctl", "disable", "ssh-ws.service").Run()
+	exec.Command("systemctl", "disable", "ssh-wss.service").Run()
+	os.Remove("/etc/systemd/system/ssh-ws.service")
+	os.Remove("/etc/systemd/system/ssh-wss.service")
+
+	// 6. Escribir configuración HAProxy
 	if err := os.WriteFile(configFile, []byte(haproxyCfg), 0644); err != nil {
 		return fmt.Errorf("fallo escribir haproxy.cfg: %v", err)
 	}
 
-	// 5. Validar configuración antes de reiniciar
+	// 7. Crear servicio SSH WebSocket interno (puerto 10015) si no existe
+	if exec.Command("systemctl", "is-active", "--quiet", "ssh-ws-internal.service").Run() != nil {
+		installSSHWSInternal()
+	}
+
+	// 8. Validar y reiniciar HAProxy
 	if out, err := exec.Command("haproxy", "-c", "-f", configFile).CombinedOutput(); err != nil {
 		return fmt.Errorf("configuración haproxy inválida: %s", string(out))
 	}
 
-	// 6. Reiniciar
 	exec.Command("systemctl", "daemon-reload").Run()
 	exec.Command("systemctl", "enable", "haproxy").Run()
 	if err := exec.Command("systemctl", "restart", "haproxy").Run(); err != nil {
@@ -181,12 +197,105 @@ func InstallSSLTunnel(port string) error {
 	return nil
 }
 
-// RemoveSSLTunnel detiene y elimina HAProxy
+// installSSHWSInternal instala el proxy SSH WebSocket interno en puerto 10015
+// Este es el servicio al que HAProxy redirige las conexiones WebSocket.
+func installSSHWSInternal() {
+	_ = exec.Command("apt-get", "install", "-y", "-qq", "python3").Run()
+
+	proxyCode := `#!/usr/bin/env python3
+"""SSH WebSocket Proxy (interno para HAProxy) - Puerto 10015"""
+import asyncio, sys, ssl, signal, os
+BUFFER_SIZE = 65536
+SSH_HOST = "127.0.0.1"
+SSH_PORT = 22
+RESPONSE_101 = (b"HTTP/1.1 101 Switching Protocols\r\n"
+    b"Upgrade: websocket\r\nConnection: Upgrade\r\n\r\n")
+RESPONSE_200 = b"HTTP/1.1 200 Connection established\r\n\r\n"
+active = 0
+async def pipe(r, w):
+    try:
+        while True:
+            d = await r.read(BUFFER_SIZE)
+            if not d: break
+            w.write(d); await w.drain()
+    except: pass
+    finally:
+        try: w.close()
+        except: pass
+async def handle(cr, cw):
+    global active; active += 1
+    sw = None
+    try:
+        try: payload = await asyncio.wait_for(cr.read(BUFFER_SIZE), timeout=10)
+        except asyncio.TimeoutError: cw.close(); active -= 1; return
+        if not payload: cw.close(); active -= 1; return
+        ps = payload.decode("utf-8", errors="ignore").upper()
+        if "UPGRADE" in ps or "WEBSOCKET" in ps: cw.write(RESPONSE_101)
+        else: cw.write(RESPONSE_200)
+        await cw.drain()
+        try: sr, sw = await asyncio.open_connection(SSH_HOST, SSH_PORT)
+        except: cw.close(); active -= 1; return
+        await asyncio.gather(pipe(cr, sw), pipe(sr, cw))
+    except: pass
+    finally:
+        active -= 1
+        try: cw.close()
+        except: pass
+        if sw:
+            try: sw.close()
+            except: pass
+async def start(port):
+    srv = await asyncio.start_server(handle, "127.0.0.1", port)
+    async with srv: await srv.serve_forever()
+def main():
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else 10015
+    loop = asyncio.new_event_loop(); asyncio.set_event_loop(loop)
+    for s in (signal.SIGTERM, signal.SIGINT):
+        try: loop.add_signal_handler(s, lambda: loop.stop())
+        except: pass
+    try: loop.run_until_complete(start(port))
+    except KeyboardInterrupt: pass
+    finally: loop.close()
+if __name__ == "__main__": main()
+`
+	proxyScript := "/usr/local/bin/ssh-ws-internal.py"
+	os.WriteFile(proxyScript, []byte(proxyCode), 0755)
+
+	svc := `[Unit]
+Description=SSH WebSocket Proxy Internal (Puerto 10015 para HAProxy)
+After=network.target sshd.service
+Wants=sshd.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 ` + proxyScript + ` 10015
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target`
+
+	os.WriteFile("/etc/systemd/system/ssh-ws-internal.service", []byte(svc), 0644)
+	exec.Command("systemctl", "daemon-reload").Run()
+	exec.Command("systemctl", "enable", "ssh-ws-internal.service").Run()
+	exec.Command("systemctl", "restart", "ssh-ws-internal.service").Run()
+}
+
+// RemoveSSLTunnel detiene y elimina HAProxy y el proxy interno
 func RemoveSSLTunnel() error {
 	exec.Command("systemctl", "stop", "haproxy").Run()
 	exec.Command("systemctl", "disable", "haproxy").Run()
 	os.Remove("/etc/haproxy/haproxy.cfg")
 	os.Remove("/etc/haproxy/yha.pem")
+
+	// Limpiar proxy interno
+	exec.Command("systemctl", "stop", "ssh-ws-internal.service").Run()
+	exec.Command("systemctl", "disable", "ssh-ws-internal.service").Run()
+	os.Remove("/etc/systemd/system/ssh-ws-internal.service")
+	os.Remove("/usr/local/bin/ssh-ws-internal.py")
+
 	exec.Command("systemctl", "daemon-reload").Run()
 	return nil
 }
