@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Depwisescript/BOT-TELEGRAM-VPN/internal/db"
+	"github.com/Depwisescript/BOT-TELEGRAM-VPN/internal/sys"
 	tele "gopkg.in/telebot.v3"
 )
 
@@ -152,12 +153,122 @@ func handleEditCloudfrontPrompt(c tele.Context, b *tele.Bot) error {
 	return SafeEditCtx(c, b, "🚀 <b>Configurar Dominio Cloudfront</b>\n\n✏️ <i>Escribe el dominio:</i>\n\nEjemplo: <code>xyz123.cloudfront.net</code>", markup)
 }
 
+// Banner predeterminado de Depwise
+const defaultBanner = `<html>
+<h5 style="text-align:center;">
+<font face="monospace" color="#00ff00">
+⠀⠀⢀⣶⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢰⣶⡀⠀⠀
+⠀⠀⢸⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⡇⠀⠀
+⠀⠀⢸⣿⡇⠀⠀⠀⣠⣶⣄⠀⠀⠀⢸⣿⡇⠀⠀
+⠀⠀⢸⣿⡇⠀⠀⢰⣿⣿⣿⡆⠀⠀⢸⣿⡇⠀⠀
+⠀⠀⠈⣿⣿⡄⢀⣿⣿⠻⣿⣿⡀⢠⣿⣿⠁⠀⠀
+⠀⠀⠀⠹⣿⣿⣾⣿⡏⠀⢹⣿⣷⣿⣿⠏⠀⠀⠀
+⠀⠀⠀⠀⠙⢿⣿⡿⠀⠀⠀⢿⣿⡿⠋⠀⠀⠀⠀
+</font>
+</h5>
+<h1 style="text-align:center;">
+<font face="monospace" color="#00ff00"><b>DEPWISE</b></font>
+</h1>
+<h5 style="text-align:center;">
+<font color='#29b6f6'>==============================</font>
+<font color='#29b6f6'><b>✈ TELEGRAM ✈</b></font>
+<font color='#29b6f6'>==============================</font>
+</h5>
+<h5 style="text-align:center;">
+<font color='#ffffff'>Dev: </font><a href="https://t.me/Dan3651"><font color='#f1c40f'>@Dan3651</font></a>
+<font color='#ffffff'>Canal: </font><a href="https://t.me/Depwise2"><font color='#f1c40f'>@Depwise2</font></a>
+</h5>
+<h4 style="text-align:center;">
+<font color='#FF00FF'><b>🔥 ¡SE VENDEN SERVIDORES PREMIUM 35 DÍAS A 8.5 SOLES! 🔥</b></font>
+</h4>
+<h5 style="text-align:center;">
+<font color='#ff0000'>==============================</font>
+<font color='#ff0000'><b>⚡ SERVIDORES FREE ⚡</b></font>
+<font color='#ff0000'>==============================</font>
+</h5>
+<h6 style="text-align:center;">
+<font color='#ff9800'><b>⚠️ REGLAS DEL SERVIDOR ⚠️</b></font>
+<font color='#ffffff'>🚫 NO Torrent / P2P</font>
+<font color='#ffffff'>🚫 NO Spam / Fraude</font>
+<font color='#ffffff'>🚫 NO Ataques DDoS</font>
+<font color='#ff5252'><i>El incumplimiento genera ban automático</i></font>
+</h6>
+<h5 style="text-align:center;">
+<font color='#00e676'><b>CREADO EN : @Depwise_bot</b></font>
+</h5>
+</html>`
+
 func handleEditBannerPrompt(c tele.Context, b *tele.Bot) error {
+	data, _ := db.Load()
+
+	status := "❌ Sin banner"
+	bannerType := ""
+	if data.SSHBanner != "" {
+		status = "✅ Activo"
+		if data.SSHBanner == defaultBanner {
+			bannerType = "\n📋 <b>Tipo:</b> Predeterminado (Depwise)"
+		} else {
+			bannerType = "\n📋 <b>Tipo:</b> Personalizado"
+		}
+	}
+
+	markup := &tele.ReplyMarkup{}
+	btnDefault := markup.Data("🎨 Activar Predeterminado", "banner_set_default")
+	btnCustom := markup.Data("✏️ Personalizar", "banner_set_custom")
+	btnDeactivate := markup.Data("🚫 Desactivar Banner", "banner_deactivate")
+	btnBack := markup.Data("🔙 Volver", "menu_admins")
+
+	markup.Inline(
+		markup.Row(btnDefault),
+		markup.Row(btnCustom),
+		markup.Row(btnDeactivate),
+		markup.Row(btnBack),
+	)
+
+	texto := fmt.Sprintf("📜 <b>Gestión de Banner SSH</b>\n\n📊 <b>Estado:</b> %s%s\n\n<i>El banner se muestra al usuario al conectar por SSH.</i>\n\n¿Qué deseas hacer?", status, bannerType)
+	return SafeEditCtx(c, b, texto, markup)
+}
+
+func handleBannerSetDefault(c tele.Context, b *tele.Bot) error {
+	SafeEditCtx(c, b, "⏳ <i>Activando banner predeterminado...</i>", nil)
+
+	db.Update(func(data *db.ConfigData) error {
+		data.SSHBanner = defaultBanner
+		return nil
+	})
+
+	err := sys.SetSSHBanner(defaultBanner)
+	markup := &tele.ReplyMarkup{}
+	markup.Inline(markup.Row(markup.Data("🔙 Volver", "edit_banner")))
+
+	if err != nil {
+		return SafeEditCtx(c, b, fmt.Sprintf("⚠️ <b>Banner guardado pero error al aplicar:</b>\n%v", err), markup)
+	}
+	return SafeEditCtx(c, b, "✅ <b>Banner Depwise predeterminado activado y aplicado.</b>", markup)
+}
+
+func handleBannerSetCustom(c tele.Context, b *tele.Bot) error {
 	chatID := c.Chat().ID
 	UserSteps[chatID] = "awaiting_vpn_ssh_banner"
 	markup := &tele.ReplyMarkup{}
-	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "menu_admins")))
-	return SafeEditCtx(c, b, "📜 <b>Configurar Banner SSH</b>\n\n✏️ <i>Escribe el texto del banner (admite HTML básico):</i>\n\nEsto se mostrará al conectar por SSH.", markup)
+	markup.Inline(markup.Row(markup.Data("❌ Cancelar", "edit_banner")))
+	return SafeEditCtx(c, b, "📜 <b>Banner SSH Personalizado</b>\n\n✏️ <i>Escribe el texto del banner (admite HTML básico):</i>\n\nEsto se mostrará al conectar por SSH.", markup)
+}
+
+func handleBannerDeactivate(c tele.Context, b *tele.Bot) error {
+	db.Update(func(data *db.ConfigData) error {
+		data.SSHBanner = ""
+		return nil
+	})
+
+	// Quitar banner del sistema
+	exec.Command("sh", "-c", "rm -f /etc/sshd_banner").Run()
+	exec.Command("sed", "-i", "/^Banner/d", "/etc/ssh/sshd_config").Run()
+	exec.Command("systemctl", "reload", "ssh").Run()
+
+	markup := &tele.ReplyMarkup{}
+	markup.Inline(markup.Row(markup.Data("🔙 Volver", "edit_banner")))
+	return SafeEditCtx(c, b, "✅ <b>Banner SSH desactivado.</b>\n\n<i>Ya no se mostrará ningún banner al conectar.</i>", markup)
 }
 
 func handleResetHistoryConfirm(c tele.Context, b *tele.Bot) error {
