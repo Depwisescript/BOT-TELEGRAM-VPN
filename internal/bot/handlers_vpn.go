@@ -535,11 +535,12 @@ func processVPNSteps(step string, text string, chatID int64, c tele.Context, b *
 	case "awaiting_quota_days_public", "awaiting_quota_limit_public", "awaiting_quota_days_admin", "awaiting_quota_limit_admin":
 		val, err := strconv.Atoi(text)
 		if err != nil || val <= 0 {
-			_, err := SafeEdit(chatID, b, lastMsg, "⚠️ Valor inválido. Escribe un número mayor a 0:", markup)
-			return err
+			markupRetry := &tele.ReplyMarkup{}
+			markupRetry.Inline(markupRetry.Row(markupRetry.Data("❌ Cancelar", "edit_quotas")))
+			SafeEdit(chatID, b, lastMsg, "⚠️ Valor inválido. Escribe un número mayor a 0:", markupRetry)
+			return nil
 		}
 		delete(UserSteps, chatID)
-		delete(LastBotMsg, chatID)
 
 		var label string
 		db.Update(func(data *db.ConfigData) error {
@@ -562,7 +563,7 @@ func processVPNSteps(step string, text string, chatID int64, c tele.Context, b *
 
 		markupBack := &tele.ReplyMarkup{}
 		markupBack.Inline(markupBack.Row(markupBack.Data("🔙 Volver", "edit_quotas")))
-		b.Edit(lastMsg, fmt.Sprintf("✅ <b>Cuota actualizada:</b> %s", label), markupBack, tele.ModeHTML)
+		SafeEdit(chatID, b, lastMsg, fmt.Sprintf("✅ <b>Cuota actualizada:</b> %s", label), markupBack)
 		return nil
 
 	case "awaiting_vpn_slowdns_domain":
